@@ -56,9 +56,11 @@ defaults:
 
 完整示例见 [config.example.yaml](config.example.yaml)。
 
-## 文生图 (text-to-image)
+## 图片生成
 
-### 基本用法
+支持文生图、图生图、Inpainting 三种模式。
+
+### 基本用法（文生图）
 
 ```bash
 # 直接传提示词
@@ -116,6 +118,29 @@ apimart-cli generate --json '{"prompt":"a red fox","n":4}'
 
 # 从 stdin
 cat request.json | apimart-cli generate --json -
+```
+
+### 参考图生图 (image-to-image)
+
+参考已有图片进行融合或编辑：
+
+```bash
+# 多图融合
+apimart-cli generate \
+  --prompt "融合两张参考图，保留主要轮廓" \
+  --image-url "https://example.com/img1.png" \
+  --image-url "https://example.com/img2.png"
+```
+
+### Inpainting（蒙版替换）
+
+提供原图和蒙版，替换指定区域：
+
+```bash
+apimart-cli generate \
+  --prompt "把背景换成沙漠日落" \
+  --image-url "https://example.com/photo.png" \
+  --mask-url "https://example.com/mask.png"
 ```
 
 ### 最经济配置
