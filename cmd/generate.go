@@ -96,7 +96,25 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	prettyReq, _ := json.MarshalIndent(req, "", "  ")
 	fmt.Printf("Request:\n%s\n\n", string(prettyReq))
 
-	// ----- Step 5: Submit -----
+	// ----- Step 5: Resolve local image files (upload if needed) -----
+	if len(req.ImageURLs) > 0 {
+		c := client.New(apiKey, apiBase, httpProxy)
+		resolved, err := c.ResolveLocalImages(req.ImageURLs)
+		if err != nil {
+			return fmt.Errorf("failed to resolve image-urls: %w", err)
+		}
+		req.ImageURLs = resolved
+	}
+	if req.MaskURL != "" {
+		c := client.New(apiKey, apiBase, httpProxy)
+		resolved, err := c.ResolveLocalImages([]string{req.MaskURL})
+		if err != nil {
+			return fmt.Errorf("failed to resolve mask-url: %w", err)
+		}
+		req.MaskURL = resolved[0]
+	}
+
+	// ----- Step 6: Submit -----
 	c := client.New(apiKey, apiBase, httpProxy)
 	resp, err := c.Submit(req)
 	if err != nil {

@@ -122,10 +122,15 @@ cat request.json | apimart-cli generate --json -
 
 ### 参考图生图 (image-to-image)
 
-参考已有图片进行融合或编辑：
+参考已有图片进行融合或编辑，支持本地文件（自动上传）和远程 URL：
 
 ```bash
-# 多图融合
+# 本地文件（自动上传到 APIMart）
+apimart-cli generate \
+  --prompt "把这张照片改成吉卜力风格" \
+  --image-url ./my-photo.jpg
+
+# 远程 URL
 apimart-cli generate \
   --prompt "融合两张参考图，保留主要轮廓" \
   --image-url "https://example.com/img1.png" \
@@ -137,11 +142,21 @@ apimart-cli generate \
 提供原图和蒙版，替换指定区域：
 
 ```bash
+# 本地文件自动上传
 apimart-cli generate \
   --prompt "把背景换成沙漠日落" \
+  --image-url ./photo.png \
+  --mask-url ./mask.png
+
+# 远程 URL
+apimart-cli generate \
+  --prompt "Replace background with desert sunset" \
   --image-url "https://example.com/photo.png" \
   --mask-url "https://example.com/mask.png"
 ```
+
+> `--image-url` 和 `--mask-url` 可接受本地文件路径或远程 URL。
+> 本地文件会自动通过 `POST /v1/uploads/images` 上传，上传后的 URL 有效期 72 小时。
 
 ### 最经济配置
 

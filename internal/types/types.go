@@ -56,6 +56,15 @@ type ImageResult struct {
 	ExpiresAt int64    `json:"expires_at"`
 }
 
+// UploadResponse is the response from POST /v1/uploads/images.
+type UploadResponse struct {
+	URL         string `json:"url"`
+	Filename    string `json:"filename"`
+	ContentType string `json:"content_type"`
+	Bytes       int    `json:"bytes"`
+	CreatedAt   int64  `json:"created_at"`
+}
+
 // Config represents the YAML configuration file structure.
 type Config struct {
 	APIKey    string           `mapstructure:"api_key" yaml:"api_key"`

@@ -12,3 +12,6 @@ apimart-cli.exe
 # OS
 .DS_Store
 Thumbs.db
+
+# Local reference files (not committed)
+apimart-pricing.md
