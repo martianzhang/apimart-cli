@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -90,7 +91,10 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Request:\n%s\n\n", string(prettyReq))
 
 	if genDryRun {
-		fmt.Println("[dry-run] API 不会被调用，以上为本次将提交的完整请求参数。")
+		fmt.Println("# dry-run: 以上为本次将提交的完整请求参数，API 不会被调用。")
+		fmt.Println("# 等价 curl 命令：")
+		curl := buildCurl(req)
+		fmt.Println(curl)
 		return nil
 	}
 
@@ -263,6 +267,25 @@ func httpGet(url string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	return io.ReadAll(resp.Body)
+}
+
+// buildCurl generates an equivalent curl command for the request.
+func buildCurl(req *types.GenerateRequest) string {
+	body, _ := json.Marshal(req)
+	base := apiBase
+	if base == "" {
+		base = "https://api.apimart.ai"
+	}
+	// Remove trailing slash
+	base = strings.TrimRight(base, "/")
+	url := base + "/v1/images/generations"
+
+	// Build the curl command with -q to skip .curlrc
+	cmd := fmt.Sprintf("curl -X POST %s \\\n", url)
+	cmd += fmt.Sprintf("  -H \"Authorization: Bearer %s\" \\\n", apiKey)
+	cmd += "  -H \"Content-Type: application/json\" \\\n"
+	cmd += fmt.Sprintf("  -d '%s'", string(body))
+	return cmd
 }
 
 func init() {
