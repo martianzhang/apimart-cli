@@ -36,28 +36,20 @@ var (
 // imageCmd represents the `apimart-cli image` command.
 var imageCmd = &cobra.Command{
 	Use:   "image",
-	Short: "Image generation commands",
-	Long:  `Generate and edit images via APIMart API (text-to-image, image-to-image, inpainting).`,
-}
-
-// imageGenerateCmd represents the `apimart-cli image generate` subcommand.
-var imageGenerateCmd = &cobra.Command{
-	Use:   "generate",
 	Short: "Generate images via the APIMart API",
 	Long: `Generate images using the GPT-Image-2 model.
 
-You can specify parameters via individual flags, or pass a complete JSON
-request via the --json flag (file path, JSON string, or "-" for stdin).
-If --prompt points to an existing file, its content is read automatically.
-When both flags and --json are provided, --json takes precedence.
+Supports text-to-image, image-to-image, and inpainting.
+
+You can specify parameters via flags, or pass a complete JSON request
+via the --json flag (file path, JSON string, or "-" for stdin).
 
 Examples:
-  apimart-cli image generate --prompt "A cat under starry sky"
-  apimart-cli image generate --prompt prompt.txt --size "16:9"
-  echo "..." | apimart-cli image generate --prompt -
-  apimart-cli image generate --json request.json
-  apimart-cli image generate --json '{"prompt":"a red fox","n":4}'
-  cat request.json | apimart-cli image generate --json -`,
+  apimart-cli image --prompt "A cat under starry sky"
+  apimart-cli image --prompt prompt.txt --size "16:9"
+  echo "..." | apimart-cli image --prompt -
+  apimart-cli image --json request.json
+  apimart-cli image --json '{"prompt":"a red fox","n":4}'`,
 	RunE: runImageGenerate,
 }
 
@@ -211,7 +203,7 @@ func buildImageCurl(req *types.GenerateRequest) string {
 	return cmd
 }
 
-// registerImageGenerateFlags adds the common image generation flags to a command.
+// registerImageGenerateFlags adds the image generation flags to a command.
 func registerImageGenerateFlags(cmd *cobra.Command) {
 	f := cmd.Flags()
 	f.StringVar(&genModel, "model", "", `Model name (default "gpt-image-2-official")`)
@@ -230,8 +222,7 @@ func registerImageGenerateFlags(cmd *cobra.Command) {
 }
 
 func init() {
-	registerImageGenerateFlags(imageGenerateCmd)
-	imageCmd.AddCommand(imageGenerateCmd)
+	registerImageGenerateFlags(imageCmd)
 	rootCmd.AddCommand(imageCmd)
 }
 
