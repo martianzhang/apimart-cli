@@ -29,6 +29,7 @@ var (
 	genN            int
 	genImageURLs    []string
 	genMaskURL      string
+	genDryRun       bool
 )
 
 // generateCmd represents the `generate` subcommand.
@@ -87,6 +88,11 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	// ----- Step 4: Print the request payload -----
 	prettyReq, _ := json.MarshalIndent(req, "", "  ")
 	fmt.Printf("Request:\n%s\n\n", string(prettyReq))
+
+	if genDryRun {
+		fmt.Println("[dry-run] API 不会被调用，以上为本次将提交的完整请求参数。")
+		return nil
+	}
 
 	// ----- Step 5: Submit -----
 	c := client.New(apiKey, apiBase, httpProxy)
@@ -275,6 +281,7 @@ func init() {
 	f.IntVar(&genN, "n", 0, "Number of images to generate (1-4)")
 	f.StringArrayVar(&genImageURLs, "image-url", nil, "Reference image URL (repeatable)")
 	f.StringVar(&genMaskURL, "mask-url", "", "Mask image URL for inpainting")
+	f.BoolVar(&genDryRun, "dry-run", false, "Print request parameters without calling API")
 
 	// Note: flag .Changed is checked at runtime inside buildRequest
 }
