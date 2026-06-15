@@ -28,6 +28,7 @@ var rootCmd = &cobra.Command{
 
 子命令：
   image     图片生成（文生图、图生图、Inpainting）
+  video     视频生成（文生视频、图生视频）
   task      查询任务状态
   balance   查询余额
 

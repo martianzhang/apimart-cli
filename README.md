@@ -1,6 +1,6 @@
 # apimart-cli
 
-APIMart API 的统一命令行工具。当前支持 **图片生成**，后续将扩展视频生成等更多能力。
+APIMart API 的统一命令行工具。支持 **图片生成** 和 **视频生成**。
 
 ## 安装
 
@@ -61,6 +61,7 @@ defaults:
 ```
 apimart-cli
 ├── image             图片生成（文生图、图生图、Inpainting）
+├── video             视频生成（文生视频、图生视频、首尾帧）
 ├── task               查询任务状态
 ├── balance            查询 Token 余额
 └── balance user       查询账号余额
@@ -194,6 +195,54 @@ export HTTP_PROXY="http://127.0.0.1:7890"
 apimart-cli image --prompt "..." --http-proxy "socks5://127.0.0.1:1080"
 ```
 
+## 视频生成
+
+支持文生视频、图生视频、首尾帧、参考视频、音频视频等模式。
+
+```bash
+# 文生视频
+apimart-cli video --prompt "A kitten yawning at the camera"
+
+# 指定分辨率及时长
+apimart-cli video --prompt "City nightscape" --resolution 720p --duration 8
+
+# 图生视频（首帧）
+apimart-cli video --prompt "The kitten walks toward the camera" --image-url ./cat.jpg
+
+# 首尾帧过渡
+apimart-cli video --prompt "Transition from day to night" \
+  --first-frame day.jpg --last-frame night.jpg
+
+# 生成带音频的视频
+apimart-cli video --prompt "A man speaks to the camera" --generate-audio
+
+# 参考视频 + 参考音频
+apimart-cli video --prompt "A person speaking" \
+  --video-url ./reference.mp4 --audio-url ./speech.wav
+
+# JSON 输入
+apimart-cli video --json request.json
+```
+
+### 视频参数
+
+| 参数 | 说明 |
+|---|---|
+| `--prompt` | 视频内容描述 |
+| `--model` | 模型名，默认 `doubao-seedance-2.0` |
+| `--duration` | 时长 4-15 秒，默认 5 |
+| `--size` | 宽高比：`16:9`、`9:16`、`1:1`、`4:3`、`3:4`、`21:9`、`adaptive` |
+| `--resolution` | 分辨率：`480p`、`720p`、`1080p`，默认 `480p` |
+| `--seed` | 随机种子，用于复现 |
+| `--generate-audio` | 生成 AI 音频 |
+| `--return-last-frame` | 返回最后一帧用于续拍 |
+| `--image-url` | 参考图片 URL（可重复） |
+| `--first-frame` | 首帧图片 |
+| `--last-frame` | 尾帧图片 |
+| `--video-url` | 参考视频 URL（可重复） |
+| `--audio-url` | 参考音频 URL（可重复） |
+| `--tool` | 工具（如 `web_search`，可重复） |
+
 ## 其他命令
 
 ### 查询任务状态
@@ -231,7 +280,7 @@ apimart-cli image --prompt "test" --size "16:9" --dry-run
 | `GET /v1/balance` | Token 余额查询 | ✅ 已支持 |
 | `GET /v1/user/balance` | 用户余额查询 | ✅ 已支持 |
 | `POST /v1/uploads/images` | 上传图片 | ✅ 已支持 |
-| `POST /v1/videos/generations` | 文生视频 | 🚧 待开发 |
+| `POST /v1/videos/generations` | 文生视频 | ✅ 已支持 |
 
 完整文档见 [docs.apimart.ai](https://docs.apimart.ai/en)。
 

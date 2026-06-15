@@ -105,6 +105,40 @@ type UploadResponse struct {
 	CreatedAt   int64  `json:"created_at"`
 }
 
+// VideoGenerateRequest is the request body for POST /v1/videos/generations.
+type VideoGenerateRequest struct {
+	Model           string          `json:"model"`
+	Prompt          string          `json:"prompt,omitempty"`
+	Duration        *int            `json:"duration,omitempty"`
+	Size            string          `json:"size,omitempty"`
+	Resolution      string          `json:"resolution,omitempty"`
+	Seed            *int            `json:"seed,omitempty"`
+	GenerateAudio   *bool           `json:"generate_audio,omitempty"`
+	ReturnLastFrame *bool           `json:"return_last_frame,omitempty"`
+	Tools           []VideoTool     `json:"tools,omitempty"`
+	ImageURLs       []string        `json:"image_urls,omitempty"`
+	ImageWithRoles  []ImageWithRole `json:"image_with_roles,omitempty"`
+	VideoURLs       []string        `json:"video_urls,omitempty"`
+	AudioURLs       []string        `json:"audio_urls,omitempty"`
+}
+
+// VideoTool represents a tool for video generation (e.g. web_search).
+type VideoTool struct {
+	Type string `json:"type"`
+}
+
+// ImageWithRole represents an image with a specific role (first_frame, last_frame, reference_image).
+type ImageWithRole struct {
+	URL  string `json:"url"`
+	Role string `json:"role"`
+}
+
+// VideoGenerateResponse is the response from POST /v1/videos/generations.
+type VideoGenerateResponse struct {
+	Code int                `json:"code"`
+	Data []TaskSubmission   `json:"data"`
+}
+
 // Config represents the YAML configuration file structure.
 type Config struct {
 	APIKey    string           `mapstructure:"api_key" yaml:"api_key"`

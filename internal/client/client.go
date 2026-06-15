@@ -17,12 +17,13 @@ import (
 )
 
 const (
-	defaultBaseURL    = "https://api.apimart.ai"
-	submitPath        = "/v1/images/generations"
-	uploadPath        = "/v1/uploads/images"
-	taskPath          = "/v1/tasks/%s"
-	tokenBalancePath  = "/v1/balance"
-	userBalancePath   = "/v1/user/balance"
+	defaultBaseURL     = "https://api.apimart.ai"
+	imageSubmitPath    = "/v1/images/generations"
+	videoSubmitPath    = "/v1/videos/generations"
+	uploadPath         = "/v1/uploads/images"
+	taskPath           = "/v1/tasks/%s"
+	tokenBalancePath   = "/v1/balance"
+	userBalancePath    = "/v1/user/balance"
 	// Default polling settings
 	pollInterval    = 3 * time.Second
 	initialDelay    = 10 * time.Second
@@ -71,7 +72,7 @@ func (c *Client) Submit(req *types.GenerateRequest) (*types.GenerateResponse, er
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequest(http.MethodPost, c.baseURL+submitPath, bytes.NewReader(body))
+	httpReq, err := http.NewRequest(http.MethodPost, c.baseURL+imageSubmitPath, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -101,7 +102,42 @@ func (c *Client) Submit(req *types.GenerateRequest) (*types.GenerateResponse, er
 	return &result, nil
 }
 
-// PollTask polls a task until completion or failure.
+// VideoSubmit sends a video generation request and returns the task submission.
+func (c *Client) VideoSubmit(req *types.VideoGenerateRequest) (*types.VideoGenerateResponse, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequest(http.MethodPost, c.baseURL+videoSubmitPath, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result types.VideoGenerateResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+	return &result, nil
+}
+
+// PollTask polls a task (image or video) until completion or failure.
 func (c *Client) PollTask(taskID string) (*types.TaskData, error) {
 	fmt.Printf("Task submitted: %s\n", taskID)
 	fmt.Printf("Waiting %v before first poll...\n", initialDelay)
