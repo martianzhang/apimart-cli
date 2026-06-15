@@ -47,7 +47,7 @@ Examples:
   apimart-cli generate --prompt prompt.txt --size "16:9"
   echo "A detailed cyberpunk cityscape" | apimart-cli generate --prompt -
   apimart-cli generate --json request.json
-  apimart-cli generate --json '{"prompt":"a red fox","n":4}' --wait
+  apimart-cli generate --json '{"prompt":"a red fox","n":4}'
   cat request.json | apimart-cli generate --json -`,
 	RunE: runGenerate,
 }
@@ -103,13 +103,6 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Response code: %d\n", resp.Code)
 	fmt.Printf("Task ID: %s\n", task.TaskID)
 	fmt.Printf("Status: %s\n\n", task.Status)
-
-	// ----- Step 6: Wait / Poll (optional) -----
-	if !waitFlag {
-		fmt.Println("Use --wait to poll for the result, or query manually via:")
-		fmt.Printf("  GET https://api.apimart.ai/v1/tasks/%s\n", task.TaskID)
-		return nil
-	}
 
 	fmt.Println("Polling for completion...")
 	taskData, err := c.PollTask(task.TaskID)

@@ -70,8 +70,8 @@ apimart-cli generate --prompt prompt.txt
 # 从 stdin 读取
 echo "赛博朋克城市夜景" | apimart-cli generate --prompt -
 
-# 等待结果并下载图片
-apimart-cli generate --prompt "..." --wait --output ./images
+# 自动轮询并下载图片到当前目录
+apimart-cli generate --prompt "..."
 ```
 
 ### 详细参数

@@ -14,7 +14,6 @@ var (
 	apiBase    string
 	httpProxy  string
 	jsonInput  string
-	waitFlag   bool
 	outputDir  string
 )
 
@@ -60,6 +59,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&apiBase, "api-base", "", "API base URL (env: APIMART_API_BASE, default https://api.apimart.ai)")
 	rootCmd.PersistentFlags().StringVar(&httpProxy, "http-proxy", "", "HTTP proxy URL (env: APIMART_HTTP_PROXY, e.g. http://127.0.0.1:7890)")
 	rootCmd.PersistentFlags().StringVar(&jsonInput, "json", "", "JSON file path, JSON string, or \"-\" for stdin")
-	rootCmd.PersistentFlags().BoolVar(&waitFlag, "wait", false, "wait for task completion and download results")
+
 	rootCmd.PersistentFlags().StringVar(&outputDir, "output", ".", "output directory for downloaded images")
 }

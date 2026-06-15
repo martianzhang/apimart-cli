@@ -1,11 +1,11 @@
 ---
 name: apimart-text2image
-description: Use the apimart-cli tool to generate images via the APIMart GPT-Image-2 API. Supports text-to-image, image-to-image, inpainting, configurable resolution/quality, proxy, and task polling with --wait.
+description: Use the apimart-cli tool to generate images via the APIMart GPT-Image-2 API. Supports text-to-image, image-to-image, inpainting, configurable resolution/quality, and proxy. Automatically polls task and downloads images.
 ---
 
 # apimart-text2image
 
-通过 `apimart-cli` 调用 APIMart GPT-Image-2 API 生成图片。
+通过 `apimart-cli` 调用 APIMart GPT-Image-2 API 生成图片。提交任务后自动轮询完成并下载图片到当前目录。
 
 ## 前置条件
 
@@ -24,10 +24,10 @@ description: Use the apimart-cli tool to generate images via the APIMart GPT-Ima
 ### 1. 基本文生图
 
 ```bash
-apimart-cli generate --prompt "你的提示词" --wait --output .
+apimart-cli generate --prompt "你的提示词"
 ```
 
-`--wait` 会轮询任务直到完成并自动下载图片到当前目录。
+提交后自动轮询，任务完成即下载图片到当前目录。
 
 ### 2. 详细参数
 
@@ -40,7 +40,6 @@ apimart-cli generate \
   --quality "high" \
   --output-format "jpeg" \
   --n 1 \
-  --wait \
   --output ./output
 ```
 
@@ -52,7 +51,7 @@ apimart-cli generate \
 cat > prompt.txt << 'EOF'
 详细的图片描述...
 EOF
-apimart-cli generate --prompt prompt.txt --wait
+apimart-cli generate --prompt prompt.txt
 ```
 
 或通过 stdin：
@@ -70,7 +69,7 @@ apimart-cli generate --json '{
   "size": "16:9",
   "resolution": "2k",
   "n": 2
-}' --wait
+}'
 ```
 
 ### 5. 图生图 / Inpainting
@@ -79,8 +78,7 @@ apimart-cli generate --json '{
 apimart-cli generate \
   --prompt "融合两张参考图" \
   --image-url "https://example.com/img1.png" \
-  --image-url "https://example.com/img2.png" \
-  --wait
+  --image-url "https://example.com/img2.png"
 ```
 
 ```bash
@@ -88,8 +86,7 @@ apimart-cli generate \
 apimart-cli generate \
   --prompt "把背景换成沙漠日落" \
   --image-url "https://example.com/photo.png" \
-  --mask-url "https://example.com/mask.png" \
-  --wait
+  --mask-url "https://example.com/mask.png"
 ```
 
 ## 最经济配置
@@ -103,8 +100,7 @@ apimart-cli generate \
   --prompt "提示词" \
   --size "3:1" \
   --resolution "1k" \
-  --quality "low" \
-  --wait
+  --quality "low"
 ```
 
 或设入 config.yaml 作为全局默认值。
@@ -128,7 +124,7 @@ export HTTP_PROXY="http://127.0.0.1:7890"
 
 ## 注意事项
 
-- `--wait` 会轮询直到任务完成，最长等待 180 秒
+- 提交后自动轮询任务，最长等待 180 秒
 - `quality: "high"` + `resolution: "2k"/"4k"` 可能耗时 120 秒以上
-- 生成图片的 URL 有时效性，建议用 `--wait` 自动下载到本地
+- 图片自动下载到当前目录（或用 `--output` 指定目录），无需额外操作
 - 不要多次调用 API 测试，避免产生不必要的费用
