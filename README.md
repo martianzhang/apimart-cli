@@ -55,9 +55,11 @@ defaults:
     output_format: "png"
 
   video:
-    model: "doubao-seedance-2.0"
-    size: "16:9"
-    resolution: "480p"
+    model: "grok-imagine-1.5-video-apimart" # $0.007，最便宜
+    # grok 仅支持 model+prompt，其他参数注释参考
+    # size: "16:9"
+    # resolution: "480p"
+    # duration: 5
 ```
 
 完整示例见 [config.example.yaml](config.example.yaml)。
@@ -238,7 +240,7 @@ apimart-cli video --json request.json
 | 参数 | 说明 |
 |---|---|
 | `--prompt` | 视频内容描述 |
-| `--model` | 模型名，默认 `doubao-seedance-2.0` |
+| `--model` | 模型名，默认 `grok-imagine-1.5-video-apimart`（$0.007）或 `doubao-seedance-2.0` |
 | `--duration` | 时长 4-15 秒，默认 5 |
 | `--size` | 宽高比：`16:9`、`9:16`、`1:1`、`4:3`、`3:4`、`21:9`、`adaptive` |
 | `--resolution` | 分辨率：`480p`、`720p`、`1080p`，默认 `480p` |

@@ -138,7 +138,7 @@ func runImageGenerate(cmd *cobra.Command, args []string) error {
 
 	// ----- Step 8: Download images -----
 	if taskData.Result != nil && len(taskData.Result.Images) > 0 {
-		return downloadImages(taskData.Result.Images)
+		return downloadImages(taskData.Result.Images, taskData.ID)
 	}
 
 	return nil
@@ -285,7 +285,7 @@ func isFile(path string) bool {
 }
 
 // downloadImages downloads all generated images to the output directory.
-func downloadImages(images []types.ImageResult) error {
+func downloadImages(images []types.ImageResult, taskID string) error {
 	for i, img := range images {
 		for j, url := range img.URL {
 			resp, err := httpGet(url)
@@ -298,7 +298,7 @@ func downloadImages(images []types.ImageResult) error {
 			if ext == "" {
 				ext = ".png"
 			}
-			filename := filepath.Join(outputDir, fmt.Sprintf("apimart_%s_task_%d_%d%s", "generate", i, j, ext))
+			filename := filepath.Join(outputDir, fmt.Sprintf("apimart_%s_%d_%d%s", taskID, i, j, ext))
 			if err := os.WriteFile(filename, resp, 0644); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: failed to save %s: %v\n", filename, err)
 				continue

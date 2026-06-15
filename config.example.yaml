@@ -24,7 +24,8 @@ defaults:
     # output_compression: 85
 
   video:
-    model: "doubao-seedance-2.0"
-    size: "16:9"
-    resolution: "480p"
+    model: "grok-imagine-1.5-video-apimart"    # $0.007, cheapest
+    # grok only supports model + prompt. Uncomment these for doubao-seedance-2.0 etc:
+    # size: "16:9"
+    # resolution: "480p"
     # duration: 5

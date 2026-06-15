@@ -125,7 +125,7 @@ func runVideo(cmd *cobra.Command, args []string) error {
 	fmt.Printf("\nTask result:\n%s\n", string(prettyResult))
 
 	if taskData.Result != nil && len(taskData.Result.Videos) > 0 {
-		return downloadVideos(taskData.Result.Videos)
+		return downloadVideos(taskData.Result.Videos, taskData.ID)
 	}
 
 	return nil
@@ -225,7 +225,7 @@ func buildVideoCurl(req *types.VideoGenerateRequest) string {
 }
 
 // downloadVideos downloads all generated videos.
-func downloadVideos(videos []types.VideoResult) error {
+func downloadVideos(videos []types.VideoResult, taskID string) error {
 	for i, vid := range videos {
 		for j, url := range vid.URL {
 			resp, err := httpGet(url)
@@ -234,7 +234,7 @@ func downloadVideos(videos []types.VideoResult) error {
 				continue
 			}
 			ext := extractExt(url)
-			filename := filepath.Join(outputDir, fmt.Sprintf("apimart_video_%d_%d%s", i, j, ext))
+			filename := filepath.Join(outputDir, fmt.Sprintf("apimart_%s_%d_%d%s", taskID, i, j, ext))
 			if err := os.WriteFile(filename, resp, 0644); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: failed to save %s: %v\n", filename, err)
 				continue

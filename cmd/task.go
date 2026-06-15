@@ -32,9 +32,9 @@ Example:
 		pretty, _ := json.MarshalIndent(task, "", "  ")
 		fmt.Println(string(pretty))
 
-		// Also download images if available and --output is set
+		// Also download images if available
 		if task.Result != nil && len(task.Result.Images) > 0 && task.Status == "completed" {
-			return downloadImages(task.Result.Images)
+			return downloadImages(task.Result.Images, task.ID)
 		}
 
 		return nil
