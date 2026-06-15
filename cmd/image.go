@@ -229,18 +229,21 @@ func init() {
 // The following helpers are shared across image commands and aliases.
 
 // resolvePrompt resolves the prompt text from --prompt flag.
+// resolvePrompt resolves the prompt text.
+// Defaults to stdin when --prompt is not specified.
 func resolvePrompt() (string, error) {
-	if genPrompt == "" {
-		return "", nil
+	input := genPrompt
+	if input == "" {
+		input = "-"
 	}
-	if genPrompt == "-" || isFile(genPrompt) {
-		data, err := readInput(genPrompt)
+	if input == "-" || isFile(input) {
+		data, err := readInput(input)
 		if err != nil {
 			return "", fmt.Errorf("failed to read prompt: %w", err)
 		}
 		return string(data), nil
 	}
-	return genPrompt, nil
+	return input, nil
 }
 
 // readInput reads content from a file path, stdin ("-"), or returns the raw string.

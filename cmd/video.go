@@ -138,16 +138,17 @@ func buildVideoRequest(cmd *cobra.Command) (*types.VideoGenerateRequest, error) 
 		return req, nil
 	}
 
-	// Resolve prompt
+	// Resolve prompt (defaults to stdin)
 	prompt := vidPrompt
-	if prompt != "" {
-		if prompt == "-" || isFile(prompt) {
-			data, err := readInput(prompt)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read prompt: %w", err)
-			}
-			prompt = string(data)
+	if prompt == "" {
+		prompt = "-"
+	}
+	if prompt == "-" || isFile(prompt) {
+		data, err := readInput(prompt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read prompt: %w", err)
 		}
+		prompt = string(data)
 	}
 
 	req := &types.VideoGenerateRequest{
