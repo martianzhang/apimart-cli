@@ -21,10 +21,17 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "apimart-cli",
 	Short: "CLI tool for APIMart image generation",
-	Long: `A command-line tool to generate images via the APIMart API.
+	CompletionOptions: cobra.CompletionOptions{
+		HiddenDefaultCmd: true, // hide "completion" to avoid confusion with LLM completion
+	},
+	Long: `APIMart API 的统一命令行工具。支持图片生成、任务查询、余额查询等操作。
 
-Supports all GPT-Image-2 parameters via flags or raw JSON input.
-Default values can be set in ~/.config/apimart/config.yaml`,
+子命令：
+  image     图片生成（文生图、图生图、Inpainting）
+  task      查询任务状态
+  balance   查询余额
+
+默认值可在 ~/.config/apimart/config.yaml 中配置。`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Load config (optional) to resolve defaults not set via flags
 		if cfg, err := config.Load(cfgFile); err == nil {

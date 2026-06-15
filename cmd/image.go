@@ -16,7 +16,7 @@ import (
 	"github.com/martianzhang/apimart-cli/internal/types"
 )
 
-// generate flags
+// Image-specific flag variables
 var (
 	genModel        string
 	genPrompt       string
@@ -33,8 +33,15 @@ var (
 	genDryRun       bool
 )
 
-// generateCmd represents the `generate` subcommand.
-var generateCmd = &cobra.Command{
+// imageCmd represents the `apimart-cli image` command.
+var imageCmd = &cobra.Command{
+	Use:   "image",
+	Short: "Image generation commands",
+	Long:  `Generate and edit images via APIMart API (text-to-image, image-to-image, inpainting).`,
+}
+
+// imageGenerateCmd represents the `apimart-cli image generate` subcommand.
+var imageGenerateCmd = &cobra.Command{
 	Use:   "generate",
 	Short: "Generate images via the APIMart API",
 	Long: `Generate images using the GPT-Image-2 model.
@@ -45,18 +52,18 @@ If --prompt points to an existing file, its content is read automatically.
 When both flags and --json are provided, --json takes precedence.
 
 Examples:
-  apimart-cli generate --prompt "A cat under starry sky"
-  apimart-cli generate --prompt prompt.txt --size "16:9"
-  echo "A detailed cyberpunk cityscape" | apimart-cli generate --prompt -
-  apimart-cli generate --json request.json
-  apimart-cli generate --json '{"prompt":"a red fox","n":4}'
-  cat request.json | apimart-cli generate --json -`,
-	RunE: runGenerate,
+  apimart-cli image generate --prompt "A cat under starry sky"
+  apimart-cli image generate --prompt prompt.txt --size "16:9"
+  echo "..." | apimart-cli image generate --prompt -
+  apimart-cli image generate --json request.json
+  apimart-cli image generate --json '{"prompt":"a red fox","n":4}'
+  cat request.json | apimart-cli image generate --json -`,
+	RunE: runImageGenerate,
 }
 
-func runGenerate(cmd *cobra.Command, args []string) error {
+func runImageGenerate(cmd *cobra.Command, args []string) error {
 	// ----- Step 1: Build the request -----
-	req, err := buildRequest(cmd)
+	req, err := buildImageRequest(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to build request: %w", err)
 	}
@@ -64,7 +71,6 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	// ----- Step 2: Merge config defaults -----
 	defaults, err := config.LoadDefaults(cfgFile)
 	if err != nil {
-		// Non-fatal: config may not exist
 		fmt.Fprintf(os.Stderr, "Note: could not load config defaults: %v\n", err)
 	}
 	defaults.MergeInto(req)
@@ -87,7 +93,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	}
 
 	if genDryRun {
-		curl := buildCurl(req)
+		curl := buildImageCurl(req)
 		fmt.Println(curl)
 		return nil
 	}
@@ -140,7 +146,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	prettyResult, _ := json.MarshalIndent(taskData, "", "  ")
 	fmt.Printf("\nTask result:\n%s\n", string(prettyResult))
 
-	// ----- Step 8: Download images (optional) -----
+	// ----- Step 8: Download images -----
 	if taskData.Result != nil && len(taskData.Result.Images) > 0 {
 		return downloadImages(taskData.Result.Images)
 	}
@@ -148,20 +154,17 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// buildRequest constructs a GenerateRequest from --json or individual flags.
-func buildRequest(cmd *cobra.Command) (*types.GenerateRequest, error) {
-	// If --json is provided, parse it
+// buildImageRequest constructs a GenerateRequest from --json or individual flags.
+func buildImageRequest(cmd *cobra.Command) (*types.GenerateRequest, error) {
 	if jsonInput != "" {
 		return parseJSONInput()
 	}
 
-	// Resolve prompt from --prompt or --prompt-file
 	prompt, err := resolvePrompt()
 	if err != nil {
 		return nil, err
 	}
 
-	// Build from flags
 	req := &types.GenerateRequest{
 		Model:        genModel,
 		Prompt:       prompt,
@@ -191,15 +194,54 @@ func buildRequest(cmd *cobra.Command) (*types.GenerateRequest, error) {
 	return req, nil
 }
 
-// resolvePrompt resolves the prompt text.
-// If --prompt is "-", reads from stdin.
-// If --prompt is an existing file, reads its content.
-// Otherwise uses --prompt as the literal prompt text.
+// buildImageCurl generates an equivalent curl command for an image generation request.
+func buildImageCurl(req *types.GenerateRequest) string {
+	body, _ := json.Marshal(req)
+	base := apiBase
+	if base == "" {
+		base = "https://api.apimart.ai"
+	}
+	base = strings.TrimRight(base, "/")
+	url := base + "/v1/images/generations"
+
+	cmd := fmt.Sprintf("curl -X POST %s \\\n", url)
+	cmd += fmt.Sprintf("  -H \"Authorization: Bearer %s\" \\\n", apiKey)
+	cmd += "  -H \"Content-Type: application/json\" \\\n"
+	cmd += fmt.Sprintf("  -d '%s'", string(body))
+	return cmd
+}
+
+// registerImageGenerateFlags adds the common image generation flags to a command.
+func registerImageGenerateFlags(cmd *cobra.Command) {
+	f := cmd.Flags()
+	f.StringVar(&genModel, "model", "", `Model name (default "gpt-image-2-official")`)
+	f.StringVar(&genPrompt, "prompt", "", "Text description (auto-reads from file if path exists, or \"-\" for stdin)")
+	f.StringVar(&genSize, "size", "", `Aspect ratio (e.g. "16:9", "1:1") or pixel dims (e.g. "1024x1024")`)
+	f.StringVar(&genResolution, "resolution", "", "Resolution tier: 1k, 2k, 4k")
+	f.StringVar(&genQuality, "quality", "", "Quality: auto, low, medium, high")
+	f.StringVar(&genBackground, "background", "", "Background mode: auto, opaque, transparent")
+	f.StringVar(&genModeration, "moderation", "", "Moderation strength: auto, low")
+	f.StringVar(&genOutputFormat, "output-format", "", "Output format: png, jpeg, webp")
+	f.IntVar(&genCompression, "output-compression", 0, "Output compression level 0-100 (jpeg/webp only)")
+	f.IntVar(&genN, "n", 0, "Number of images to generate (1-4)")
+	f.StringArrayVar(&genImageURLs, "image-url", nil, "Reference image URL (repeatable)")
+	f.StringVar(&genMaskURL, "mask-url", "", "Mask image URL for inpainting")
+	f.BoolVar(&genDryRun, "dry-run", false, "Print request parameters without calling API")
+}
+
+func init() {
+	registerImageGenerateFlags(imageGenerateCmd)
+	imageCmd.AddCommand(imageGenerateCmd)
+	rootCmd.AddCommand(imageCmd)
+}
+
+// The following helpers are shared across image commands and aliases.
+
+// resolvePrompt resolves the prompt text from --prompt flag.
 func resolvePrompt() (string, error) {
 	if genPrompt == "" {
 		return "", nil
 	}
-	// Autodetect: stdin, file, or literal text
 	if genPrompt == "-" || isFile(genPrompt) {
 		data, err := readInput(genPrompt)
 		if err != nil {
@@ -283,44 +325,4 @@ func httpGet(url string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	return io.ReadAll(resp.Body)
-}
-
-// buildCurl generates an equivalent curl command for the request.
-func buildCurl(req *types.GenerateRequest) string {
-	body, _ := json.Marshal(req)
-	base := apiBase
-	if base == "" {
-		base = "https://api.apimart.ai"
-	}
-	// Remove trailing slash
-	base = strings.TrimRight(base, "/")
-	url := base + "/v1/images/generations"
-
-	// Build the curl command with -q to skip .curlrc
-	cmd := fmt.Sprintf("curl -X POST %s \\\n", url)
-	cmd += fmt.Sprintf("  -H \"Authorization: Bearer %s\" \\\n", apiKey)
-	cmd += "  -H \"Content-Type: application/json\" \\\n"
-	cmd += fmt.Sprintf("  -d '%s'", string(body))
-	return cmd
-}
-
-func init() {
-	rootCmd.AddCommand(generateCmd)
-
-	f := generateCmd.Flags()
-	f.StringVar(&genModel, "model", "", `Model name (default "gpt-image-2-official")`)
-	f.StringVar(&genPrompt, "prompt", "", "Text description (auto-reads from file if path exists, or \"-\" for stdin)")
-	f.StringVar(&genSize, "size", "", `Aspect ratio (e.g. "16:9", "1:1") or pixel dims (e.g. "1024x1024")`)
-	f.StringVar(&genResolution, "resolution", "", "Resolution tier: 1k, 2k, 4k")
-	f.StringVar(&genQuality, "quality", "", "Quality: auto, low, medium, high")
-	f.StringVar(&genBackground, "background", "", "Background mode: auto, opaque, transparent")
-	f.StringVar(&genModeration, "moderation", "", "Moderation strength: auto, low")
-	f.StringVar(&genOutputFormat, "output-format", "", "Output format: png, jpeg, webp")
-	f.IntVar(&genCompression, "output-compression", 0, "Output compression level 0-100 (jpeg/webp only)")
-	f.IntVar(&genN, "n", 0, "Number of images to generate (1-4)")
-	f.StringArrayVar(&genImageURLs, "image-url", nil, "Reference image URL (repeatable)")
-	f.StringVar(&genMaskURL, "mask-url", "", "Mask image URL for inpainting")
-	f.BoolVar(&genDryRun, "dry-run", false, "Print request parameters without calling API")
-
-	// Note: flag .Changed is checked at runtime inside buildRequest
 }

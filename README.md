@@ -1,6 +1,6 @@
 # apimart-cli
 
-APIMart API 的统一命令行工具。当前支持 **文生图（text-to-image）**，后续将扩展视频生成等更多能力。
+APIMart API 的统一命令行工具。当前支持 **图片生成**，后续将扩展视频生成等更多能力。
 
 ## 安装
 
@@ -24,7 +24,7 @@ make build
 
 ```bash
 # 方式一：命令行参数
-apimart-cli generate --prompt "..." --api-key "sk-xxx"
+apimart-cli image generate --prompt "..." --api-key "sk-xxx"
 
 # 方式二：环境变量
 export APIMART_API_KEY="sk-xxx"
@@ -56,6 +56,16 @@ defaults:
 
 完整示例见 [config.example.yaml](config.example.yaml)。
 
+## 命令结构
+
+```
+apimart-cli
+├── image generate     图片生成（文生图、图生图、Inpainting）
+├── task               查询任务状态
+├── balance            查询 Token 余额
+└── balance user       查询账号余额
+```
+
 ## 图片生成
 
 支持文生图、图生图、Inpainting 三种模式。
@@ -64,16 +74,16 @@ defaults:
 
 ```bash
 # 直接传提示词
-apimart-cli generate --prompt "一只猫在星空下"
+apimart-cli image generate --prompt "一只猫在星空下"
 
 # 从文件读取（自动识别文件路径）
-apimart-cli generate --prompt prompt.txt
+apimart-cli image generate --prompt prompt.txt
 
 # 从 stdin 读取
-echo "赛博朋克城市夜景" | apimart-cli generate --prompt -
+echo "赛博朋克城市夜景" | apimart-cli image generate --prompt -
 
 # 自动轮询并下载图片到当前目录
-apimart-cli generate --prompt "..."
+apimart-cli image generate --prompt "..."
 ```
 
 ### 详细参数
@@ -96,7 +106,7 @@ apimart-cli generate --prompt "..."
 | `--mask-url` | 蒙版图片 URL（inpainting） |
 
 ```bash
-apimart-cli generate --prompt "..." \
+apimart-cli image generate --prompt "..." \
   --size "16:9" \
   --resolution "2k" \
   --quality "high" \
@@ -111,13 +121,13 @@ apimart-cli generate --prompt "..." \
 
 ```bash
 # JSON 文件
-apimart-cli generate --json request.json
+apimart-cli image generate --json request.json
 
 # JSON 字符串
-apimart-cli generate --json '{"prompt":"a red fox","n":4}'
+apimart-cli image generate --json '{"prompt":"a red fox","n":4}'
 
 # 从 stdin
-cat request.json | apimart-cli generate --json -
+cat request.json | apimart-cli image generate --json -
 ```
 
 ### 参考图生图 (image-to-image)
@@ -126,12 +136,12 @@ cat request.json | apimart-cli generate --json -
 
 ```bash
 # 本地文件（自动上传到 APIMart）
-apimart-cli generate \
+apimart-cli image generate \
   --prompt "把这张照片改成吉卜力风格" \
   --image-url ./my-photo.jpg
 
 # 远程 URL
-apimart-cli generate \
+apimart-cli image generate \
   --prompt "融合两张参考图，保留主要轮廓" \
   --image-url "https://example.com/img1.png" \
   --image-url "https://example.com/img2.png"
@@ -143,13 +153,13 @@ apimart-cli generate \
 
 ```bash
 # 本地文件自动上传
-apimart-cli generate \
+apimart-cli image generate \
   --prompt "把背景换成沙漠日落" \
   --image-url ./photo.png \
   --mask-url ./mask.png
 
 # 远程 URL
-apimart-cli generate \
+apimart-cli image generate \
   --prompt "Replace background with desert sunset" \
   --image-url "https://example.com/photo.png" \
   --mask-url "https://example.com/mask.png"
@@ -163,7 +173,7 @@ apimart-cli generate \
 参考 [APIMart 定价](https://apimart.ai/pricing)，`gpt-image-2-official` 最低 **$0.00144/张**：
 
 ```bash
-apimart-cli generate --prompt "..." \
+apimart-cli image generate --prompt "..." \
   --size "3:1" \
   --resolution "1k" \
   --quality "low"
@@ -175,13 +185,13 @@ apimart-cli generate --prompt "..." \
 
 ```bash
 # 命令行指定
-apimart-cli generate --prompt "..." --http-proxy "http://127.0.0.1:7890"
+apimart-cli image generate --prompt "..." --http-proxy "http://127.0.0.1:7890"
 
 # 环境变量（支持 HTTP_PROXY / HTTPS_PROXY / ALL_PROXY / NO_PROXY）
 export HTTP_PROXY="http://127.0.0.1:7890"
 
 # SOCKS5
-apimart-cli generate --prompt "..." --http-proxy "socks5://127.0.0.1:1080"
+apimart-cli image generate --prompt "..." --http-proxy "socks5://127.0.0.1:1080"
 ```
 
 ## 其他命令
@@ -192,7 +202,7 @@ apimart-cli generate --prompt "..." --http-proxy "socks5://127.0.0.1:1080"
 apimart-cli task task_01KV4KD9FBH3AZ4DE18A7Y17S3
 ```
 
-返回完整的任务信息（状态、进度、耗时、费用、结果图片 URL 等）。任务完成后会自动下载图片到 `--output` 目录。
+返回完整的任务信息（状态、进度、耗时、费用、结果 URL 等）。图片任务完成后自动下载图片到 `--output` 目录。
 
 ### 查询余额
 
@@ -202,6 +212,14 @@ apimart-cli balance
 
 # 查询用户账号的总余额
 apimart-cli balance user
+```
+
+### Dry-run 调试
+
+打印即将提交的 curl 命令，不实际调用 API：
+
+```bash
+apimart-cli image generate --prompt "test" --size "16:9" --dry-run
 ```
 
 ## API 参考
@@ -221,7 +239,7 @@ apimart-cli balance user
 
 ```bash
 make          # 编译
-make run ARGS="generate --help"   # 运行
+make run ARGS="image generate --help"   # 运行查看帮助
 make clean    # 清理产物
 make lint     # 静态检查
 ```

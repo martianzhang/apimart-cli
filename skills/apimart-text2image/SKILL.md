@@ -1,11 +1,11 @@
 ---
 name: apimart-text2image
-description: Use the apimart-cli tool to generate images via the APIMart GPT-Image-2 API. Supports text-to-image, image-to-image, inpainting, configurable resolution/quality, and proxy. Automatically polls task and downloads images.
+description: Use the "apimart-cli image generate" command to generate images via the APIMart GPT-Image-2 API. Supports text-to-image, image-to-image, inpainting, configurable resolution/quality, and proxy. Automatically polls task and downloads images.
 ---
 
 # apimart-text2image
 
-通过 `apimart-cli` 调用 APIMart GPT-Image-2 API 生成图片。提交任务后自动轮询完成并下载图片到当前目录。
+通过 `apimart-cli image generate` 调用 APIMart GPT-Image-2 API 生成图片。提交任务后自动轮询完成并下载图片到当前目录。
 
 ## 前置条件
 
