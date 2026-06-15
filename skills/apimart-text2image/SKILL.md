@@ -1,6 +1,6 @@
 ---
 name: apimart-text2image
-description: Use the "apimart-cli image" command to generate images via the APIMart GPT-Image-2 API. Supports text-to-image, image-to-image, inpainting, configurable resolution/quality, and proxy. Automatically polls task and downloads images.
+description: Use "apimart-cli image" to generate images via the APIMart GPT-Image-2 API. Supports text-to-image, image-to-image, inpainting, local file upload, dry-run, proxy. Automatically polls task and downloads images.
 ---
 
 # apimart-text2image
@@ -24,7 +24,7 @@ description: Use the "apimart-cli image" command to generate images via the APIM
 ### 1. 基本文生图
 
 ```bash
-apimart-cli generate --prompt "你的提示词"
+apimart-cli image --prompt "你的提示词"
 ```
 
 提交后自动轮询，任务完成即下载图片到当前目录。
@@ -32,7 +32,7 @@ apimart-cli generate --prompt "你的提示词"
 ### 2. 详细参数
 
 ```bash
-apimart-cli generate \
+apimart-cli image \
   --prompt "提示词" \
   --model "gpt-image-2-official" \
   --size "16:9" \
@@ -51,19 +51,19 @@ apimart-cli generate \
 cat > prompt.txt << 'EOF'
 详细的图片描述...
 EOF
-apimart-cli generate --prompt prompt.txt
+apimart-cli image --prompt prompt.txt
 ```
 
 或通过 stdin：
 
 ```bash
-echo "详细描述" | apimart-cli generate --prompt -
+echo "详细描述" | apimart-cli image --prompt -
 ```
 
 ### 4. JSON 输入
 
 ```bash
-apimart-cli generate --json '{
+apimart-cli image --json '{
   "model": "gpt-image-2-official",
   "prompt": "your prompt",
   "size": "16:9",
@@ -75,7 +75,7 @@ apimart-cli generate --json '{
 ### 5. 图生图 / Inpainting
 
 ```bash
-apimart-cli generate \
+apimart-cli image \
   --prompt "融合两张参考图" \
   --image-url "https://example.com/img1.png" \
   --image-url "https://example.com/img2.png"
@@ -83,10 +83,27 @@ apimart-cli generate \
 
 ```bash
 # Inpainting：替换背景
-apimart-cli generate \
+apimart-cli image \
   --prompt "把背景换成沙漠日落" \
   --image-url "https://example.com/photo.png" \
   --mask-url "https://example.com/mask.png"
+```
+
+### 6. 本地文件自动上传
+
+`--image-url` 和 `--mask-url` 支持本地文件路径，自动上传：
+
+```bash
+apimart-cli image --prompt "吉卜力风格" --image-url ./my-photo.jpg
+apimart-cli image --prompt "换背景" --image-url ./photo.png --mask-url ./mask.png
+```
+
+### 7. Dry-run 调试
+
+查看即将提交的 curl 命令，不实际调用 API：
+
+```bash
+apimart-cli image --prompt "test" --size "16:9" --dry-run
 ```
 
 ## 最经济配置
@@ -96,7 +113,7 @@ apimart-cli generate \
 `gpt-image-2-official` 最低 **$0.00144/张**：
 
 ```bash
-apimart-cli generate \
+apimart-cli image \
   --prompt "提示词" \
   --size "3:1" \
   --resolution "1k" \
@@ -110,8 +127,8 @@ apimart-cli generate \
 如果用户环境需要代理才能访问外网：
 
 ```bash
-# 命令行
-apimart-cli generate --prompt "..." --http-proxy "http://127.0.0.1:7890"
+# --http-proxy 参数（支持 http/https/socks5）
+apimart-cli image --prompt "..." --http-proxy "http://127.0.0.1:7890"
 
 # 环境变量（自动识别）
 export HTTP_PROXY="http://127.0.0.1:7890"
