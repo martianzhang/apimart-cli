@@ -14,8 +14,6 @@ import (
 	"github.com/martianzhang/apimart-cli/internal/types"
 )
 
-const marketplaceURL = "https://api.apimart.ai/api/marketplace/models"
-
 var modelType string
 
 // modelsCmd represents the `apimart-cli models` command.
@@ -45,38 +43,58 @@ func runModels(cmd *cobra.Command, args []string) error {
 		mediaType = modelType
 	}
 
-	url := marketplaceURL + "?sort=newest&page=1&page_size=50"
-	if mediaType != "" {
-		url += "&type=" + mediaType
+	base := apiBase
+	if base == "" {
+		base = "https://api.apimart.ai"
 	}
+	base = strings.TrimRight(base, "/")
 
 	client := httpProxyClient()
-	resp, err := client.Get(url)
-	if err != nil {
-		return fmt.Errorf("failed to fetch models: %w", err)
-	}
-	defer resp.Body.Close()
+	pageSize := 50
+	page := 1
+	var allModels []types.MarketplaceModel
+	var total int
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response: %w", err)
+	for {
+		url := fmt.Sprintf("%s/api/marketplace/models?sort=newest&page=%d&page_size=%d", base, page, pageSize)
+		if mediaType != "" {
+			url += "&type=" + mediaType
+		}
+
+		resp, err := client.Get(url)
+		if err != nil {
+			return fmt.Errorf("failed to fetch models (page %d): %w", page, err)
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			return fmt.Errorf("failed to read response: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
+		}
+
+		var result types.MarketplaceResponse
+		if err := json.Unmarshal(body, &result); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+
+		if !result.Success {
+			return fmt.Errorf("API returned error")
+		}
+
+		total = result.Data.Total
+		allModels = append(allModels, result.Data.Models...)
+
+		if len(allModels) >= total {
+			break
+		}
+		page++
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var result types.MarketplaceResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	if !result.Success {
-		return fmt.Errorf("API returned error")
-	}
-
-	data := result.Data
-	if len(data.Models) == 0 {
+	if len(allModels) == 0 {
 		fmt.Println("No models found.")
 		return nil
 	}
@@ -89,7 +107,7 @@ func runModels(cmd *cobra.Command, args []string) error {
 	var groups []group
 	vendorMap := make(map[string][]types.MarketplaceModel)
 
-	for _, m := range data.Models {
+	for _, m := range allModels {
 		vName := "Other"
 		if m.Vendor != nil && m.Vendor.Name != "" {
 			vName = m.Vendor.Name
@@ -106,7 +124,7 @@ func runModels(cmd *cobra.Command, args []string) error {
 	if mediaType != "" {
 		title = strings.ToUpper(mediaType[:1]) + mediaType[1:] + " Models"
 	}
-	fmt.Printf("\n%s (%d total)\n\n", title, data.Total)
+	fmt.Printf("\n%s (%d total)\n\n", title, total)
 
 	for _, g := range groups {
 		fmt.Printf("  %s:\n", g.vendor)
