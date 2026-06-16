@@ -205,6 +205,50 @@ type ChatUsage struct {
 	TotalTokens      int `json:"total_tokens"`
 }
 
+// MarketplaceResponse is the response from the public marketplace API.
+type MarketplaceResponse struct {
+	Success bool                `json:"success"`
+	Data    MarketplaceData     `json:"data"`
+}
+
+type MarketplaceData struct {
+	Total    int               `json:"total"`
+	Page     int               `json:"page"`
+	PageSize int               `json:"page_size"`
+	Models   []MarketplaceModel `json:"models"`
+}
+
+type MarketplaceModel struct {
+	ID           int                 `json:"id"`
+	ModelName    string              `json:"model_name"`
+	DisplayName  string              `json:"display_name"`
+	Description  string              `json:"description"`
+	MediaType    string              `json:"media_type"`
+	DetailURL    string              `json:"detail_url"`
+	Tags         []string            `json:"tags"`
+	Vendor       *MarketplaceVendor  `json:"vendor"`
+	Pricing      MarketplacePricing  `json:"pricing"`
+	CallCount    int64               `json:"call_count"`
+	DiscountPct  int                 `json:"discount_percent"`
+}
+
+type MarketplaceVendor struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+	Icon string `json:"icon"`
+}
+
+type MarketplacePricing struct {
+	StartingPrice      float64 `json:"starting_price"`
+	DiscountRate       float64 `json:"discount_rate"`
+	CreditsPerGen      int     `json:"credits_per_generation"`
+	BillingType        string  `json:"billing_type"`
+	PriceUnit          string  `json:"price_unit"`
+	HasPrice           bool    `json:"has_price"`
+	InputPrice         float64 `json:"input_price,omitempty"`
+	OutputPrice        float64 `json:"output_price,omitempty"`
+}
+
 // Config represents the YAML configuration file structure.
 type Config struct {
 	APIKey    string           `mapstructure:"api_key" yaml:"api_key"`

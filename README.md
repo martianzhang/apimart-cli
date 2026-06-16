@@ -71,6 +71,7 @@ apimart-cli
 ├── image             图片生成（文生图、图生图、Inpainting）
 ├── video             视频生成（文生视频、图生视频、首尾帧）
 ├── chat              AI 对话（流式输出，默认 deepseek-v4-flash）
+├── models            查询模型列表（无需 API Key）
 ├── task               查询任务状态
 ├── balance            查询 Token 余额
 └── balance user       查询账号余额
@@ -291,6 +292,23 @@ apimart-cli chat --model gpt-5 --message "Hello"
 | `--json` | JSON 输入 |
 
 ## 其他命令
+
+### 查询模型列表
+
+无需 API Key，免认证查询市场可用模型：
+
+```bash
+# 所有模型
+apimart-cli models
+
+# 按类型筛选
+apimart-cli models image
+apimart-cli models video
+apimart-cli models chat
+
+# 或使用 --type 参数
+apimart-cli models --type image
+```
 
 ### 查询任务状态
 
