@@ -121,15 +121,17 @@ func runVideo(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("polling failed: %w", err)
 	}
 
-	fmt.Printf("\nCompleted in %ds | Cost: $%.5f (%.4f credits)\n",
-		taskData.ActualTime, taskData.Cost, taskData.CreditsCost)
 	prettyResult, _ := json.MarshalIndent(taskData, "", "  ")
 	fmt.Printf("\nTask result:\n%s\n", string(prettyResult))
 
 	if taskData.Result != nil && len(taskData.Result.Videos) > 0 {
-		return downloadVideos(taskData.Result.Videos, taskData.ID)
+		if err := downloadVideos(taskData.Result.Videos, taskData.ID); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: download error: %v\n", err)
+		}
 	}
 
+	fmt.Printf("Completed in %ds | Cost: $%.5f (%.4f credits)\n",
+		taskData.ActualTime, taskData.Cost, taskData.CreditsCost)
 	return nil
 }
 

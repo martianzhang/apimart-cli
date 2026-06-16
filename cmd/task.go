@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -32,9 +33,11 @@ Example:
 		pretty, _ := json.MarshalIndent(task, "", "  ")
 		fmt.Println(string(pretty))
 
-		// Also download images if available
+		// Download images if available
 		if task.Result != nil && len(task.Result.Images) > 0 && task.Status == "completed" {
-			return downloadImages(task.Result.Images, task.ID)
+			if err := downloadImages(task.Result.Images, task.ID); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: download error: %v\n", err)
+			}
 		}
 
 		return nil
