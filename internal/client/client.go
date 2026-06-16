@@ -162,8 +162,6 @@ func handleSSE(resp *http.Response) (*types.ChatResponse, error) {
 		Choices: []types.ChatChoice{{Message: types.ChatMessage{Role: "assistant"}}},
 	}
 
-	var firstContentPrinted bool
-
 	for scanner.Scan() {
 		line := scanner.Text()
 
@@ -188,11 +186,8 @@ func handleSSE(resp *http.Response) (*types.ChatResponse, error) {
 		for _, choice := range chunk.Choices {
 			content := choice.Delta.Content
 			if content != "" {
-				if !firstContentPrinted && choice.Delta.Role == "assistant" {
-					// don't print role
-				}
 				fmt.Print(content)
-				firstContentPrinted = true
+				os.Stdout.Sync() // force flush for real-time streaming
 				full.Choices[0].Message.Content += content
 			}
 
