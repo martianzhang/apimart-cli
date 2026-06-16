@@ -386,3 +386,15 @@ make lint     # 静态检查
 
 代理优先级：
 **`--http-proxy` 参数 > `APIMART_HTTP_PROXY` 环境变量 > `HTTP_PROXY` 标准环境变量**
+
+## License
+
+[MIT](LICENSE)
+
+<div align="center">
+
+<img src="wechat.png" width="400" alt="微信公众号" />
+
+**欢迎关注微信公众号，分享更多好用、好玩的工具**
+
+</div>
