@@ -121,8 +121,10 @@ func runVideo(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("polling failed: %w", err)
 	}
 
-	prettyResult, _ := json.MarshalIndent(taskData, "", "  ")
-	fmt.Printf("\nTask result:\n%s\n", string(prettyResult))
+	if verbose {
+		prettyResult, _ := json.MarshalIndent(taskData, "", "  ")
+		fmt.Printf("\nTask result:\n%s\n", string(prettyResult))
+	}
 
 	if taskData.Result != nil && len(taskData.Result.Videos) > 0 {
 		if err := downloadVideos(taskData.Result.Videos, taskData.ID); err != nil {

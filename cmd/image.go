@@ -132,8 +132,10 @@ func runImageGenerate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("polling failed: %w", err)
 	}
 
-	prettyResult, _ := json.MarshalIndent(taskData, "", "  ")
-	fmt.Printf("\nTask result:\n%s\n", string(prettyResult))
+	if verbose {
+		prettyResult, _ := json.MarshalIndent(taskData, "", "  ")
+		fmt.Printf("\nTask result:\n%s\n", string(prettyResult))
+	}
 
 	// ----- Step 8: Download images -----
 	if taskData.Result != nil && len(taskData.Result.Images) > 0 {

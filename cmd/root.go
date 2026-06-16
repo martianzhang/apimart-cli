@@ -15,6 +15,7 @@ var (
 	httpProxy  string
 	jsonInput  string
 	outputDir  string
+	verbose    bool
 )
 
 // rootCmd represents the base command.
@@ -71,4 +72,5 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&jsonInput, "json", "", "JSON file path, JSON string, or \"-\" for stdin")
 
 	rootCmd.PersistentFlags().StringVar(&outputDir, "output", ".", "output directory for downloaded images")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output: show full result JSON")
 }

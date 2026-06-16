@@ -30,8 +30,17 @@ Example:
 			return fmt.Errorf("failed to query task: %w", err)
 		}
 
-		pretty, _ := json.MarshalIndent(task, "", "  ")
-		fmt.Println(string(pretty))
+		if verbose {
+			pretty, _ := json.MarshalIndent(task, "", "  ")
+			fmt.Println(string(pretty))
+		}
+
+		fmt.Printf("Status: %s | Progress: %d%%", task.Status, task.Progress)
+		if task.Status == "completed" {
+			fmt.Printf(" | Cost: $%.5f (%.4f credits) | Time: %ds",
+				task.Cost, task.CreditsCost, task.ActualTime)
+		}
+		fmt.Println()
 
 		// Download images if available
 		if task.Result != nil && len(task.Result.Images) > 0 && task.Status == "completed" {
