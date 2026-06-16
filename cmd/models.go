@@ -224,15 +224,8 @@ var pricingCmd = &cobra.Command{
 				}
 			}
 
-			limit := 15
-			if len(cheapest) < limit {
-				limit = len(cheapest)
-			}
-			for _, s := range cheapest[:limit] {
+			for _, s := range cheapest {
 				fmt.Printf("    %-14s  %-6s  $%.5f\n", s.size, s.quality, s.price)
-			}
-			if len(cheapest) > limit {
-				fmt.Printf("    ... and %d more sizes\n", len(cheapest)-limit)
 			}
 		}
 		return nil
