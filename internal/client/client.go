@@ -162,6 +162,7 @@ func handleSSE(resp *http.Response) (*types.ChatResponse, error) {
 		Choices: []types.ChatChoice{{Message: types.ChatMessage{Role: "assistant"}}},
 	}
 
+	var roleSkipped bool
 	for scanner.Scan() {
 		line := scanner.Text()
 
@@ -179,15 +180,24 @@ func handleSSE(resp *http.Response) (*types.ChatResponse, error) {
 
 		var chunk types.ChatStreamChunk
 		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
-			// Skip unparseable chunks
 			continue
 		}
 
 		for _, choice := range chunk.Choices {
+			// Skip the first chunk which only contains delta.role="assistant"
+			if !roleSkipped && choice.Delta.Role != "" {
+				roleSkipped = true
+				full.Choices[0].Message.Role = choice.Delta.Role
+				// If this chunk also has content, fall through to print it
+				if choice.Delta.Content == "" {
+					continue
+				}
+			}
+
 			content := choice.Delta.Content
 			if content != "" {
 				fmt.Print(content)
-				os.Stdout.Sync() // force flush for real-time streaming
+				os.Stdout.Sync()
 				full.Choices[0].Message.Content += content
 			}
 
