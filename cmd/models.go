@@ -159,6 +159,105 @@ func formatPrice(m types.MarketplaceModel) string {
 	}
 }
 
+// pricingCmd represents `apimart-cli models pricing <name>`.
+var pricingCmd = &cobra.Command{
+	Use:   "pricing <model-name>",
+	Short: "Show detailed pricing for a specific model",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		modelName := args[0]
+		base := mainDomain(apiBase)
+		url := base + "/api/pricing/model?model=" + modelName
+
+		client := httpProxyClient()
+		resp, err := client.Get(url)
+		if err != nil {
+			return fmt.Errorf("failed to fetch pricing: %w", err)
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response: %w", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
+		}
+
+		var result types.ModelPricingResponse
+		if err := json.Unmarshal(body, &result); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+		if !result.Success {
+			return fmt.Errorf("API returned error")
+		}
+		d := result.Data
+
+		fmt.Printf("\n%s\n", d.ModelName)
+		fmt.Printf("  Billing: %s\n", d.BillingType)
+		fmt.Printf("  Base price: $%.5f\n", d.ModelPrice)
+		fmt.Printf("  Discount: %.0f%%\n", (1-d.DiscountRate)*100)
+		fmt.Printf("  Qualities: %s\n", strings.Join(d.SupportedQualities, ", "))
+
+		if d.BillingType == "size_quality" && len(d.SizeQualityPrices) > 0 {
+			fmt.Printf("\n  Size × Quality pricing (lowest):\n")
+			// Collect lowest price per size
+			type sq struct{ size, quality string; price float64 }
+			var cheapest []sq
+			for size, qMap := range d.SizeQualityPrices {
+				lowest := sq{size: size, price: 1e9}
+				for q, p := range qMap {
+					if p < lowest.price {
+						lowest.price = p
+						lowest.quality = q
+					}
+				}
+				cheapest = append(cheapest, lowest)
+			}
+
+			// Sort by price ascending
+			for i := 0; i < len(cheapest); i++ {
+				for j := i + 1; j < len(cheapest); j++ {
+					if cheapest[j].price < cheapest[i].price {
+						cheapest[i], cheapest[j] = cheapest[j], cheapest[i]
+					}
+				}
+			}
+
+			limit := 15
+			if len(cheapest) < limit {
+				limit = len(cheapest)
+			}
+			for _, s := range cheapest[:limit] {
+				fmt.Printf("    %-14s  %-6s  $%.5f\n", s.size, s.quality, s.price)
+			}
+			if len(cheapest) > limit {
+				fmt.Printf("    ... and %d more sizes\n", len(cheapest)-limit)
+			}
+		}
+		return nil
+	},
+}
+
+// mainDomain extracts the main domain from an API base URL.
+// e.g. "https://api.apimart.ai" → "https://apimart.ai"
+func mainDomain(baseURL string) string {
+	if baseURL == "" {
+		baseURL = "https://api.apimart.ai"
+	}
+	baseURL = strings.TrimRight(baseURL, "/")
+	baseURL = strings.TrimSuffix(baseURL, "/v1")
+
+	// Replace api. prefix with empty
+	if strings.HasPrefix(baseURL, "https://api.") {
+		return "https://" + strings.TrimPrefix(baseURL, "https://api.")
+	}
+	if strings.HasPrefix(baseURL, "http://api.") {
+		return "http://" + strings.TrimPrefix(baseURL, "http://api.")
+	}
+	return baseURL
+}
+
 // httpProxyClient returns an HTTP client that respects the configured proxy.
 func httpProxyClient() *http.Client {
 	transport := &http.Transport{}
@@ -181,5 +280,6 @@ func httpProxyClient() *http.Client {
 
 func init() {
 	modelsCmd.Flags().StringVarP(&modelType, "type", "t", "", "Filter by type: image, video, chat")
+	modelsCmd.AddCommand(pricingCmd)
 	rootCmd.AddCommand(modelsCmd)
 }

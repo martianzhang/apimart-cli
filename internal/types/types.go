@@ -249,6 +249,24 @@ type MarketplacePricing struct {
 	OutputPrice        float64 `json:"output_price,omitempty"`
 }
 
+// ModelPricingResponse is the response from /api/pricing/model?model=xxx.
+type ModelPricingResponse struct {
+	Success bool               `json:"success"`
+	Data    ModelPricingData   `json:"data"`
+}
+
+type ModelPricingData struct {
+	ModelName         string                `json:"model_name"`
+	BillingType       string                `json:"billing_type"`
+	ModelPrice        float64               `json:"model_price"`
+	DiscountRate      float64               `json:"discount_rate"`
+	ResolutionEnabled bool                  `json:"resolution_enabled"`
+	SupportedSizes    []string              `json:"supported_sizes"`
+	SupportedQualities []string             `json:"supported_qualities"`
+	SizeQualityPrices map[string]map[string]float64 `json:"size_quality_prices"`
+	ResolutionPrices  map[string]float64    `json:"resolution_prices"`
+}
+
 // Config represents the YAML configuration file structure.
 type Config struct {
 	APIKey    string           `mapstructure:"api_key" yaml:"api_key"`
