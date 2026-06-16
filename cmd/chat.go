@@ -144,10 +144,10 @@ func setFloatFlag(cmd *cobra.Command, name string, target **float64, val float64
 
 func init() {
 	f := chatCmd.Flags()
-	f.StringVar(&chatModel, "model", "", `Model name (default "deepseek-v4-flash")`)
-	f.StringVar(&chatSystem, "system", "", "System prompt to set AI behavior")
+	f.StringVarP(&chatModel, "model", "m", "", `Model name (default "deepseek-v4-flash")`)
+	f.StringVarP(&chatSystem, "system", "s", "", "System prompt to set AI behavior")
 	f.StringArrayVar(&chatMessages, "message", nil, "User message (repeatable for multi-turn)")
-	f.Float64Var(&chatTemperature, "temperature", 0, "Sampling temperature (0-2)")
+	f.Float64VarP(&chatTemperature, "temperature", "t", 0, "Sampling temperature (0-2)")
 	f.IntVar(&chatMaxTokens, "max-tokens", 0, "Maximum tokens in response")
 	f.BoolVar(&chatNoStream, "no-stream", false, "Disable streaming, wait for full response")
 	f.StringVar(&chatJSONFlag, "json", "", "JSON file, string, or \"-\" for stdin")
