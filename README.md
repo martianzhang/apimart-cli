@@ -71,7 +71,7 @@ apimart-cli
 ├── image             图片生成（文生图、图生图、Inpainting）
 ├── video             视频生成（文生视频、图生视频、首尾帧）
 ├── chat              AI 对话（流式输出，默认 deepseek-v4-flash）
-├── models            查询模型列表（无需 API Key）
+├── models            查询模型列表及定价（无需 API Key）
 ├── task               查询任务状态
 ├── balance            查询 Token 余额
 └── balance user       查询账号余额
@@ -308,6 +308,10 @@ apimart-cli models chat
 
 # 或使用 --type 参数
 apimart-cli models --type image
+
+# 查看特定模型的详细定价
+apimart-cli models pricing gpt-image-2-official
+apimart-cli models pricing doubao-seedance-2.0
 ```
 
 ### 查询任务状态
@@ -351,6 +355,8 @@ apimart-cli video --prompt "test" --duration 4 --dry-run
 | `GET /v1/tasks/{task_id}` | 查询任务状态 | ✅ 已支持 |
 | `GET /v1/balance` | Token 余额查询 | ✅ 已支持 |
 | `GET /v1/user/balance` | 用户余额查询 | ✅ 已支持 |
+| `GET /api/marketplace/models` | 模型列表（免认证） | ✅ 已支持 |
+| `GET /api/pricing/model` | 模型定价详情（免认证） | ✅ 已支持 |
 
 完整文档见 [docs.apimart.ai](https://docs.apimart.ai/en)。
 
