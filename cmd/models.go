@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -143,9 +144,16 @@ func formatPrice(m types.MarketplaceModel) string {
 // httpProxyClient returns an HTTP client that respects the configured proxy.
 func httpProxyClient() *http.Client {
 	transport := &http.Transport{}
-	if httpProxy != "" {
-		if proxyURL, err := url.Parse(httpProxy); err == nil {
-			transport.Proxy = http.ProxyURL(proxyURL)
+	proxyURL := httpProxy
+	if proxyURL == "" {
+		proxyURL = os.Getenv("APIMART_HTTP_PROXY")
+	}
+	if proxyURL == "" {
+		proxyURL = os.Getenv("HTTP_PROXY")
+	}
+	if proxyURL != "" {
+		if parsed, err := url.Parse(proxyURL); err == nil {
+			transport.Proxy = http.ProxyURL(parsed)
 		}
 	} else {
 		transport.Proxy = http.ProxyFromEnvironment
