@@ -393,8 +393,8 @@ make lint     # 静态检查
 
 <div align="center">
 
-<img src="wechat.png" width="400" alt="微信公众号" />
+<img src="wechat.jpg" width="400" alt="没有那多" />
 
-**欢迎关注微信公众号，分享更多好用、好玩的工具**
+**欢迎关注微信公众号“没有那多”，分享更多好用、好玩的工具**
 
 </div>
