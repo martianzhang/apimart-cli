@@ -1,5 +1,10 @@
 # apimart-cli
 
+[![CI](https://github.com/martianzhang/apimart-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/martianzhang/apimart-cli/actions/workflows/ci.yml)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/martianzhang/apimart-cli)](https://go.dev/)
+[![License](https://img.shields.io/github/license/martianzhang/apimart-cli)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/martianzhang/apimart-cli)](https://github.com/martianzhang/apimart-cli/releases)
+
 APIMart API 的统一命令行工具。支持 **图片生成**、**视频生成** 和 **AI 对话**。
 
 ## 安装
