@@ -1,50 +1,81 @@
 # 图片生成
 
+支持**同步模式**（OpenAI / OpenRouter 兼容，直接返回图片）和**异步任务模式**（APIMart，提交后轮询结果），自动根据 API 地址检测。
+
 支持文生图、图生图、Inpainting 三种模式。
 
 ## 基本用法（文生图）
 
 ```bash
-# 直接传提示词
+# 直接传提示词（APIMart 自动异步模式）
 apimart-cli image --prompt "一只猫在星空下"
+
+# OpenAI / OpenRouter 自动同步模式
+apimart-cli image --base-url "https://openrouter.ai/api/v1" \
+  --prompt "a cat"
 
 # 从文件读取（自动识别文件路径）
 apimart-cli image --prompt prompt.txt
 
-# 从 stdin 读取（--prompt 不传时默认读 stdin）
+# 从 stdin 读取
 echo "赛博朋克城市夜景" | apimart-cli image
 apimart-cli image < prompt.txt
-
-# 自动轮询并下载图片到当前目录
-apimart-cli image --prompt "..."
 ```
 
 ## 参数
 
-| 参数 | 短参 | 说明 |
+| 参数 | 短参 | 说明 | 适用 |
+|---|---|---|---|
+| `--prompt` | `-p` | 文本描述（自动识别文件/stdin） | 通用 |
+| `--model` | `-m` | 模型名，默认 `gpt-image-2-official` | 通用 |
+| `--size` | `-s` | 宽高比，如 `16:9`、`1:1`，或像素如 `1024x1024` | 通用 |
+| `--quality` | `-q` | 质量：`auto`、`low`、`medium`、`high` | 通用 |
+| `--output-format` | `-f` | 输出格式：`png`、`jpeg`、`webp` | 通用 |
+| `--n` | | 生成数量 1-4 | 通用 |
+| `--style` | | 风格：`vivid`、`natural`（OpenAI 专用） | OpenAI |
+| `--response-format` | | 响应格式：`url`、`b64_json` | OpenAI/OpenRouter |
+| `--resolution` | `-r` | 分辨率档：`1k`、`2k`、`4k` | APIMart |
+| `--background` | | 背景：`auto`、`opaque`、`transparent` | APIMart |
+| `--moderation` | | 审核强度：`auto`、`low` | APIMart |
+| `--output-compression` | | 压缩率 0-100（jpeg/webp） | APIMart |
+| `--image-url` | | 参考图片 URL（可重复） | APIMart |
+| `--mask-url` | | 蒙版图片 URL（inpainting） | APIMart |
+| `--dry-run` | | 打印 curl 不调用 API | 通用 |
+| `--mode` | | 强制指定模式：`auto`、`sync`、`async` | 全局 |
+
+### 模式自动检测规则
+
+| base_url 包含 | 模式 | 说明 |
 |---|---|---|
-| `--prompt` | `-p` | 文本描述（自动识别文件/stdin） |
-| `--model` | `-m` | 模型名，默认 `gpt-image-2-official` |
-| `--size` | `-s` | 宽高比，如 `16:9`、`1:1`，或像素如 `1024x1024` |
-| `--resolution` | `-r` | 分辨率档：`1k`、`2k`、`4k` |
-| `--quality` | `-q` | 质量：`auto`、`low`、`medium`、`high` |
-| `--output-format` | `-f` | 输出格式：`png`、`jpeg`、`webp` |
-| `--output-compression` | | 压缩率 0-100（jpeg/webp） |
-| `--n` | | 生成数量 1-4 |
-| `--image-url` | | 参考图片 URL（可重复） |
-| `--mask-url` | | 蒙版图片 URL（inpainting） |
-| `--background` | | 背景：`auto`、`opaque`、`transparent` |
-| `--moderation` | | 审核强度：`auto`、`low` |
-| `--dry-run` | | 打印 curl 不调用 API |
+| `apimart.ai` / `apib.ai` / `aiuxu.com` / `aishuch.com` | async | APIMart 异步任务 |
+| `openai.com` / `openrouter.ai` 或其他 | sync | OpenAI 兼容同步 |
+
+可通过 `--mode sync|async` 或配置文件的 `mode` 字段强制指定。
 
 ```bash
-apimart-cli image --prompt "..." \
-  --size "16:9" \
-  --resolution "2k" \
-  --quality "high" \
-  --output-format "jpeg" \
-  --output-compression 90 \
-  --n 2
+# 强制异步（即使连的是 OpenAI 兼容中转）
+apimart-cli image --mode async --prompt "..."
+
+# 强制同步（即使连的是 APIMart）
+apimart-cli image --mode sync --prompt "..."
+```
+
+## 同步模式（OpenAI / OpenRouter）
+
+图片直接返回，无需等待轮询，下载到当前目录：
+
+```bash
+apimart-cli image --base-url "https://openrouter.ai/api/v1" \
+  --model "openai/dall-e-3" \
+  --prompt "A cute cat" \
+  --n 2 \
+  --style vivid
+
+# 输出示例：
+# Created: 1712345678
+# Image 1: https://.../image1.png
+#   Revised prompt: A cute cat in a vibrant style
+# Saved: image_sync_1712345678_0.png
 ```
 
 ## JSON 输入
@@ -62,7 +93,7 @@ apimart-cli image --json '{"prompt":"a red fox","n":4}'
 cat request.json | apimart-cli image --json -
 ```
 
-## 参考图生图 (image-to-image)
+## 参考图生图（image-to-image，APIMart）
 
 参考已有图片进行融合或编辑，支持本地文件（自动上传）和远程 URL：
 
@@ -79,7 +110,7 @@ apimart-cli image \
   --image-url "https://example.com/img2.png"
 ```
 
-## Inpainting（蒙版替换）
+## Inpainting（蒙版替换，APIMart）
 
 提供原图和蒙版，替换指定区域：
 
@@ -97,10 +128,9 @@ apimart-cli image \
   --mask-url "https://example.com/mask.png"
 ```
 
-> `--image-url` 和 `--mask-url` 可接受本地文件路径或远程 URL。
-> 本地文件会自动通过 `POST /v1/uploads/images` 上传，上传后的 URL 有效期 72 小时。
+> `--image-url` 和 `--mask-url` 仅在 APIMart 异步模式下可用。
 
-## 最经济配置
+## 最经济配置（APIMart）
 
 参考 [APIMart 定价](https://apimart.ai/pricing)，`gpt-image-2-official` 最低 **$0.00144/张**：
 
@@ -111,7 +141,7 @@ apimart-cli image --prompt "..." \
   --quality "low"
 ```
 
-或写入 `~/.config/apimart/config.yaml` 作为默认值。
+或写入 `~/.config/openai/config.yaml` 作为默认值。
 
 ## 输出格式建议
 

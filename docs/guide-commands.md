@@ -2,26 +2,34 @@
 
 ## 查询模型列表
 
-无需 API Key，免认证查询市场可用模型：
+支持两个数据源，自动根据 API 地址选择：
+
+| base_url | 数据源 | 特点 |
+|---|---|---|
+| APIMart 域名 | `GET /api/marketplace/models` | 按类型筛选、定价信息、免认证 |
+| 其他 | `GET /v1/models` | OpenAI 标准格式 |
 
 ```bash
-# 所有模型
+# APIMart 市场（所有模型）
 apimart-cli models
 
-# 按类型筛选
+# APIMart 市场（按类型筛选）
 apimart-cli models image
 apimart-cli models video
 apimart-cli models chat
-
-# 或使用 --type 参数
 apimart-cli models --type image
 
-# 查看特定模型的详细定价
+# APIMart 特定模型定价
 apimart-cli models pricing gpt-image-2-official
 apimart-cli models pricing doubao-seedance-2.0
+
+# OpenAI / OpenRouter 标准模型列表
+apimart-cli models --base-url "https://openrouter.ai/api/v1"
 ```
 
 ## 查询任务状态
+
+仅 APIMart 异步模式可用：
 
 ```bash
 apimart-cli task task_01KV4KD9FBH3AZ4DE18A7Y17S3
@@ -30,6 +38,8 @@ apimart-cli task task_01KV4KD9FBH3AZ4DE18A7Y17S3
 返回完整的任务信息（状态、进度、耗时、费用、结果 URL 等）。图片任务完成后自动下载图片到 `--output` 目录。
 
 ## 查询余额
+
+仅 APIMart 可用：
 
 ```bash
 # 查询当前 API Key（Token）的余额
@@ -61,16 +71,17 @@ apimart-cli --version
 
 ## API 参考
 
-| 端点 | 用途 | 状态 |
+| 端点 | 用途 | 适用 |
 |---|---|---|
-| `POST /v1/chat/completions` | AI 对话 | ✅ |
-| `POST /v1/images/generations` | 文生图 | ✅ |
-| `POST /v1/videos/generations` | 文生视频 | ✅ |
-| `POST /v1/uploads/images` | 上传图片 | ✅ |
-| `GET /v1/tasks/{task_id}` | 查询任务状态 | ✅ |
-| `GET /v1/balance` | Token 余额查询 | ✅ |
-| `GET /v1/user/balance` | 用户余额查询 | ✅ |
-| `GET /api/marketplace/models` | 模型列表（免认证） | ✅ |
-| `GET /api/pricing/model` | 模型定价详情（免认证） | ✅ |
+| `POST /v1/chat/completions` | AI 对话 | 通用 ✅ |
+| `POST /v1/images/generations` | 文生图（同步/异步） | 通用 ✅ |
+| `POST /v1/videos/generations` | 文生视频 | APIMart ✅ |
+| `POST /v1/uploads/images` | 上传图片 | APIMart ✅ |
+| `GET /v1/tasks/{task_id}` | 查询任务状态 | APIMart ✅ |
+| `GET /v1/balance` | Token 余额查询 | APIMart ✅ |
+| `GET /v1/user/balance` | 用户余额查询 | APIMart ✅ |
+| `GET /api/marketplace/models` | 模型列表（免认证） | APIMart ✅ |
+| `GET /api/pricing/model` | 模型定价详情（免认证） | APIMart ✅ |
+| `GET /v1/models` | 模型列表 | OpenAI/OpenRouter ✅ |
 
 完整文档见 [docs.apimart.ai](https://docs.apimart.ai/en)。

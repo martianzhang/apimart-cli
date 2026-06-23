@@ -2,7 +2,7 @@
 
 > **当前状态**：测试中，功能和接口可能变化，欢迎试用反馈。
 
-`apimart-cli` 支持 [MCP 协议](https://modelcontextprotocol.io/)（Model Context Protocol），允许 AI 代理（Claude Desktop、Cursor、VS Code 等）直接调用 APIMart 能力。
+`apimart-cli` 支持 [MCP 协议](https://modelcontextprotocol.io/)（Model Context Protocol），允许 AI 代理（Claude Desktop、Cursor、VS Code 等）直接调用 API 能力。
 
 ## 快速配置
 
@@ -36,10 +36,10 @@ MCP 模式复用现有配置体系，支持三种方式：
 
 ```bash
 # 方式一：配置文件
-# ~/.config/apimart/config.yaml
+# ~/.config/openai/config.yaml 或 ~/.config/apimart/config.yaml
 
 # 方式二：环境变量
-APIMART_API_KEY=sk-xxx apimart-cli mcp
+OPENAI_API_KEY=sk-xxx apimart-cli mcp
 
 # 方式三：CLI 参数
 apimart-cli mcp --api-key sk-xxx --output ./downloads

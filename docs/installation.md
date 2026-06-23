@@ -36,15 +36,17 @@ make release  # 交叉编译（所有平台）
 # 方式一：命令行参数
 apimart-cli image --prompt "..." --api-key "sk-xxx"
 
-# 方式二：环境变量
-export APIMART_API_KEY="sk-xxx"
+# 方式二：环境变量（支持两套命名）
+export OPENAI_API_KEY="sk-xxx"
+# 或兼容旧的：
+# export APIMART_API_KEY="sk-xxx"
 
 # 方式三：配置文件
 ```
 
 ## 配置文件
 
-`~/.config/apimart/config.yaml` 可设置通用参数和默认值：
+支持两个位置（`~/.config/openai/config.yaml` 优先，`~/.config/apimart/config.yaml` 回退）：
 
 ```yaml
 api_key: "sk-xxx"
@@ -52,8 +54,12 @@ api_key: "sk-xxx"
 # API 地址（默认 https://api.apimart.ai）
 # base_url: "https://api.apimart.ai"
 
+# 生成模式：auto（自动检测）、sync（同步）、async（异步任务）
+# 默认 auto，会根据 base_url 自动识别
+# mode: "auto"
+
 # HTTP 代理
-# 也可通过 APIMART_HTTP_PROXY 环境变量或 --http-proxy 参数设置
+# 也可通过 OPENAI_HTTP_PROXY 或 APIMART_HTTP_PROXY 环境变量设置
 http_proxy: "http://127.0.0.1:7890"
 
 defaults:
@@ -72,7 +78,7 @@ defaults:
 
 ### 提示词文件
 
-加 `--save-prompt` 可将提示词保存到 `apimart_{task_id}.md` 文件，方便追溯：
+加 `--save-prompt` 可将提示词保存到 `image_{task_id}.md` 文件，方便追溯：
 
 ```bash
 apimart-cli image --prompt "A red fox" --save-prompt
@@ -96,4 +102,4 @@ apimart-cli image --prompt "..." --http-proxy "socks5://127.0.0.1:1080"
 **CLI 参数 > JSON 输入 > YAML 配置 > 代码默认值**
 
 代理优先级：
-**`--http-proxy` 参数 > `APIMART_HTTP_PROXY` 环境变量 > `HTTP_PROXY` 标准环境变量**
+**`--http-proxy` 参数 > `OPENAI_HTTP_PROXY` / `APIMART_HTTP_PROXY` 环境变量 > `HTTP_PROXY` 标准环境变量**
