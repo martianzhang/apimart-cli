@@ -322,6 +322,7 @@ type Config struct {
 	Verbose    bool            `mapstructure:"verbose" yaml:"verbose"`
 	SavePrompt bool            `mapstructure:"save_prompt" yaml:"save_prompt"`
 	Mode       string          `mapstructure:"mode" yaml:"mode"` // sync, async, or "" for auto
+	OutputDir  string          `mapstructure:"output_dir" yaml:"output_dir"`
 	Defaults   *ConfigDefaults `mapstructure:"defaults" yaml:"defaults"`
 }
 

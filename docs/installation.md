@@ -62,6 +62,9 @@ api_key: "sk-xxx"
 # 也可通过 OPENAI_HTTP_PROXY 或 APIMART_HTTP_PROXY 环境变量设置
 http_proxy: "http://127.0.0.1:7890"
 
+# 图片下载目录（默认当前目录 "."）
+# output_dir: "./downloads"
+
 defaults:
   image:
     model: "gpt-image-2-official"

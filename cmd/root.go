@@ -51,6 +51,9 @@ OpenAI-compatible third-party relay. Backward-compatible with APIMart.`,
 			if mode == "" && cfg.Mode != "" {
 				mode = cfg.Mode
 			}
+			if !cmd.Flags().Changed("output") && cfg.OutputDir != "" {
+				outputDir = cfg.OutputDir
+			}
 		}
 		if apiKey == "" {
 			return fmt.Errorf("API key is required: set it via --api-key flag, OPENAI_API_KEY env, or config.yaml")

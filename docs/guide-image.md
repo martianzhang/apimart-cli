@@ -40,6 +40,7 @@ apimart-cli image < prompt.txt
 | `--output-compression` | | 压缩率 0-100（jpeg/webp） | APIMart |
 | `--image-url` | | 参考图片 URL（可重复） | APIMart |
 | `--mask-url` | | 蒙版图片 URL（inpainting） | APIMart |
+| `--output` | | 下载目录（默认当前目录，支持相对/绝对路径） | 通用 |
 | `--dry-run` | | 打印 curl 不调用 API | 通用 |
 | `--mode` | | 强制指定模式：`auto`、`sync`、`async` | 全局 |
 

@@ -6,6 +6,7 @@ apimart-cli.exe
 # IDE
 .vscode/
 .idea/
+downloads/
 *.swp
 *.swo
 
