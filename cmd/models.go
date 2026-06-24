@@ -15,27 +15,35 @@ import (
 	"github.com/martianzhang/apimart-cli/internal/types"
 )
 
-var modelType string
+var (
+	modelType string
+	showPrice bool
+)
 
 // modelsCmd represents the `apimart-cli models` command.
 var modelsCmd = &cobra.Command{
-	Use:   "models [image|video|chat]",
-	Short: "List available AI models from APIMart marketplace",
-	Long: `Query and display models from the APIMart marketplace.
+	Use:   "models [--type image|video|chat] [--price]",
+	Short: "List available AI models",
+	Long: `List models from any OpenAI-compatible API.
 
-Supports filtering by type: image, video, or chat. No API key required.
+Without flags: queries the /v1/models endpoint (works with OpenAI,
+OpenRouter, or any OpenAI-compatible relay).
+
+APIMart marketplace flags (auto-detected, requires APIMart base URL):
+  --type, -t    Filter by media type: image, video, chat
+  --price       Show pricing information
 
 Examples:
   apimart-cli models
-  apimart-cli models image
-  apimart-cli models video
-  apimart-cli models chat`,
+  apimart-cli models --type image          (APIMart only)
+  apimart-cli models --type chat --price   (APIMart only)
+  apimart-cli models pricing <model-name>`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runModels,
 }
 
 func runModels(cmd *cobra.Command, args []string) error {
-	// Determine type filter
+	// Determine type filter (positional arg still accepted for backward compat)
 	mediaType := ""
 	if len(args) > 0 {
 		mediaType = args[0]
@@ -44,17 +52,24 @@ func runModels(cmd *cobra.Command, args []string) error {
 		mediaType = modelType
 	}
 
-	// Check if we should use APIMart marketplace or OpenAI-compatible /v1/models
-	if !isAPIMartProvider() {
-		return runModelsOpenAI()
+	// --type or --price triggers APIMart marketplace mode
+	useMarketplace := showPrice || modelType != "" || (len(args) > 0 && args[0] != "")
+	if useMarketplace {
+		if !isAPIMartProvider() {
+			return fmt.Errorf("--type and --price are APIMart marketplace features, not available for %s", apiBase)
+		}
+		return runModelsMarketplace(mediaType)
 	}
 
-	base := apiBase
-	if base == "" {
-		base = "https://api.apimart.ai"
-	}
+	// Default: universal /v1/models
+	return runModelsOpenAI()
+}
+
+// runModelsMarketplace fetches models from the APIMart marketplace API.
+// The marketplace is a public API (no auth required).
+func runModelsMarketplace(mediaType string) error {
+	base := "https://api.apimart.ai"
 	base = strings.TrimRight(base, "/")
-	base = strings.TrimSuffix(base, "/v1") // marketplace API doesn't use /v1 prefix
 
 	httpClient := httpProxyClient()
 	pageSize := 50
@@ -136,10 +151,11 @@ func runModels(cmd *cobra.Command, args []string) error {
 	for _, g := range groups {
 		fmt.Printf("  %s:\n", g.vendor)
 		for _, m := range g.models {
-			price := formatPrice(m)
-			tags := strings.Join(m.Tags, ", ")
 			line := fmt.Sprintf("    %-30s", m.ModelName)
-			line += fmt.Sprintf("  %-12s", price)
+			if showPrice {
+				line += fmt.Sprintf("  %-12s", formatPrice(m))
+			}
+			tags := strings.Join(m.Tags, ", ")
 			if tags != "" {
 				line += "  " + tags
 			}
@@ -166,7 +182,8 @@ func runModelsOpenAI() error {
 	fmt.Printf("\nAvailable models (%d):\n\n", len(models))
 	for _, m := range models {
 		line := fmt.Sprintf("  %s", m.ID)
-		if m.OwnedBy != "" && m.OwnedBy != "openai" {
+		// Only annotate when owned_by provides useful information
+		if m.OwnedBy != "" && m.OwnedBy != "openai" && m.OwnedBy != "custom" {
 			line += fmt.Sprintf("  (by %s)", m.OwnedBy)
 		}
 		fmt.Println(line)
@@ -194,9 +211,12 @@ func formatPrice(m types.MarketplaceModel) string {
 // pricingCmd represents `apimart-cli models pricing <name>`.
 var pricingCmd = &cobra.Command{
 	Use:   "pricing <model-name>",
-	Short: "Show detailed pricing for a specific model",
+	Short: "Show detailed pricing for a model (APIMart only)",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if !isAPIMartProvider() {
+			return fmt.Errorf("pricing is an APIMart marketplace feature, not available for %s", apiBase)
+		}
 		modelName := args[0]
 		base := mainDomain(apiBase)
 		url := base + "/api/pricing/model?model=" + modelName
@@ -307,7 +327,8 @@ func httpProxyClient() *http.Client {
 }
 
 func init() {
-	modelsCmd.Flags().StringVarP(&modelType, "type", "t", "", "Filter by type: image, video, chat")
+	modelsCmd.Flags().StringVarP(&modelType, "type", "t", "", "Filter by media type (APIMart marketplace): image, video, chat")
+	modelsCmd.Flags().BoolVarP(&showPrice, "price", "p", false, "Show pricing (APIMart marketplace)")
 	modelsCmd.AddCommand(pricingCmd)
 	rootCmd.AddCommand(modelsCmd)
 }
