@@ -225,6 +225,11 @@ func runModelsDetail(modelID string) error {
 		return fmt.Errorf("failed to get model: %w", err)
 	}
 
+	// Some APIs return HTTP 200 with empty data for non-existent models.
+	if model.ID == "" {
+		return fmt.Errorf("model %q not found", modelID)
+	}
+
 	fmt.Printf("\n  %s\n", model.ID)
 	if model.Object != "" {
 		fmt.Printf("    Object:   %s\n", model.Object)
