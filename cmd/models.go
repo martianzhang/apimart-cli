@@ -23,8 +23,9 @@ var (
 
 // modelsCmd represents the `apimart-cli models` command.
 var modelsCmd = &cobra.Command{
-	Use:   "models [--type image|video|chat] [--price [model-name]]",
-	Short: "List available AI models",
+	Use:          "models [--type image|video|chat] [--price [model-name]]",
+	Short:        "List available AI models",
+	SilenceUsage: true,
 	Long: `List models from any OpenAI-compatible API.
 
 Without flags: queries the /v1/models endpoint (works with OpenAI,
@@ -282,6 +283,12 @@ func runModelsPricing(modelName string) error {
 		return fmt.Errorf("API returned error")
 	}
 	d := result.Data
+
+	// Validate that the model actually exists on the platform.
+	// A non-existent model returns HTTP 200 with success=true but zero-valued data.
+	if d.BillingType == "" && d.ModelPrice == 0 {
+		return fmt.Errorf("model %q not found", modelName)
+	}
 
 	fmt.Printf("\n%s\n", d.ModelName)
 	fmt.Printf("  Billing: %s\n", d.BillingType)

@@ -23,9 +23,10 @@ var (
 
 // rootCmd represents the base command.
 var rootCmd = &cobra.Command{
-	Use:     "apimart-cli",
-	Short:   "Unified CLI for OpenAI-compatible APIs (supports OpenAI, OpenRouter, APIMart)",
-	Version: Version,
+	Use:           "apimart-cli",
+	Short:         "Unified CLI for OpenAI-compatible APIs (supports OpenAI, OpenRouter, APIMart)",
+	Version:       Version,
+	SilenceErrors: true,
 	CompletionOptions: cobra.CompletionOptions{
 		HiddenDefaultCmd: true, // hide "completion" to avoid confusion with LLM completion
 	},
@@ -60,7 +61,7 @@ OpenAI-compatible third-party relay. Backward-compatible with APIMart.`,
 // Execute adds all child commands to the root command and sets flags.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
