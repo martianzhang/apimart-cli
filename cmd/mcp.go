@@ -71,8 +71,8 @@ func init() {
 			if httpProxy == "" {
 				httpProxy = c.HTTPProxy
 			}
-			if !cmd.Flags().Changed("output") {
-				outputDir = c.BaseURL // fallback stays as "."
+			if !cmd.Flags().Changed("output") && c.OutputDir != "" {
+				outputDir = c.OutputDir
 			}
 		}
 		// Don't error on missing API key - tools will handle it gracefully
