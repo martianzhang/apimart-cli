@@ -1,11 +1,15 @@
 ---
 name: apimart-text2video
-description: Use "apimart-cli video" to generate videos via the APIMart doubao-seedance-2.0 API. Supports text-to-video, image-to-video, first/last frame, reference video/audio, and audio-enabled video. Automatically polls task and downloads videos.
+description: Use "apimart-cli video" to generate videos via the APIMart doubao-seedance-2.0 API. Supports text-to-video, image-to-video, first/last frame, reference video/audio, audio-enabled video, seed, web_search tool, and return-last-frame for continuation. Automatically polls task and downloads videos.
 ---
 
 # apimart-text2video
 
 通过 `apimart-cli video` 调用 APIMart doubao-seedance-2.0 API 生成视频。提交任务后自动轮询完成并下载视频到当前目录。
+
+支持 `--seed` 种子复现、`--tool web_search` 联网搜索、`--return-last-frame` 返回尾帧用于续拍。
+
+调试参数：`--dry-run`（打印 curl）、`-v` / `--verbose`（打印请求 JSON）、`--save-prompt`（保存 prompt）。
 
 ## 前置条件
 
@@ -98,12 +102,35 @@ apimart-cli video \
 ### 8. JSON 输入
 
 ```bash
+# JSON 字符串
 apimart-cli video --json '{
   "model": "doubao-seedance-2.0",
   "prompt": "A kitten yawning",
   "resolution": "720p",
   "duration": 5
 }'
+
+# JSON 文件
+apimart-cli video --json request.json
+
+# stdin
+cat request.json | apimart-cli video --json -
+```
+
+### 9. 种子复现
+
+指定随机种子，保证相同参数生成相同结果：
+
+```bash
+apimart-cli video --prompt "A cat walking" --seed 42
+```
+
+### 10. 联网搜索
+
+使用 `--tool` 参数启用工具：
+
+```bash
+apimart-cli video --prompt "根据最新新闻生成一段视频" --tool web_search
 ```
 
 ## 最经济配置
@@ -136,12 +163,17 @@ apimart-cli video --prompt "..." --http-proxy "http://127.0.0.1:7890"
 export HTTP_PROXY="http://127.0.0.1:7890"
 ```
 
-## Dry-run 调试
-
-查看即将提交的 curl 命令，不实际调用 API：
+## 调试技巧
 
 ```bash
+# Dry-run：打印 curl 命令，不实际调用
 apimart-cli video --prompt "test" --duration 4 --dry-run
+
+# 查看请求 JSON
+apimart-cli video --prompt "test" -v
+
+# 保存 prompt 到 video_{task_id}.md（与 --save-prompt 配合）
+apimart-cli video --prompt "A cat" --save-prompt
 ```
 
 ## 注意事项

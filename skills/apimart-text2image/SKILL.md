@@ -1,16 +1,16 @@
 ---
 name: apimart-text2image
-description: Use "apimart-cli image" to generate images via the APIMart GPT-Image-2 API. Supports text-to-image, image-to-image, inpainting, local file upload, dry-run, proxy. Automatically polls task and downloads images.
+description: Use "apimart-cli image" to generate images via OpenAI-compatible APIs (APIMart, OpenAI, OpenRouter). Supports text-to-image, image-to-image, inpainting, local file upload, dry-run, proxy, sync/async mode detect. Automatically polls task and downloads images.
 ---
 
 # apimart-text2image
 
-通过 `apimart-cli image` 调用 APIMart GPT-Image-2 API 生成图片。提交任务后自动轮询完成并下载图片到当前目录。
+通过 `apimart-cli image` 调用 OpenAI 兼容 API 生成图片。支持 APIMart（异步任务）、OpenAI / OpenRouter（同步），自动检测 API 地址并选择对应模式。提交任务后自动轮询完成并下载图片到当前目录。
 
 ## 前置条件
 
 1. 项目已安装 `apimart-cli`（`go install` 或 `make build`）
-2. 已配置 API Key（`~/.config/apimart/config.yaml` 或 `APIMART_API_KEY` 环境变量）
+2. 已配置 API Key（`~/.config/apimart/config.yaml` 或 `OPENAI_API_KEY` / `APIMART_API_KEY` 环境变量）
    - 图片默认参数在 `defaults.image` 下配置
 
 ## 何时使用
@@ -35,7 +35,23 @@ apimart-cli image < prompt.txt
 
 提交后自动轮询，任务完成即下载图片到当前目录。
 
-### 2. 详细参数
+### 2. 同步模式（OpenAI / OpenRouter）
+
+自动检测 API 地址，APIMart 域名走异步，其他（openai.com、openrouter.ai 等）走同步：
+
+```bash
+# 自动同步模式
+apimart-cli image --base-url "https://openrouter.ai/api/v1" \
+  --prompt "a cat" --model "openai/dall-e-3"
+
+# 强制指定模式
+apimart-cli image --mode sync --prompt "..."
+apimart-cli image --mode async --prompt "..."
+```
+
+同步模式支持 `--style vivid|natural` 和 `--response-format url|b64_json`。
+
+### 3. 完整参数
 
 ```bash
 apimart-cli image \
@@ -46,10 +62,13 @@ apimart-cli image \
   --quality "high" \
   --output-format "jpeg" \
   --n 1 \
-  --output ./output
+  --output ./output \
+  --style vivid \
+  --background transparent \
+  --output-compression 85
 ```
 
-### 3. 长提示词
+### 4. 长提示词
 
 提示词较长时，写入文件后传给 `--prompt`（自动识别文件）：
 
@@ -66,7 +85,7 @@ apimart-cli image --prompt prompt.txt
 echo "详细描述" | apimart-cli image
 ```
 
-### 4. JSON 输入
+### 5. JSON 输入
 
 ```bash
 apimart-cli image --json '{
@@ -78,7 +97,7 @@ apimart-cli image --json '{
 }'
 ```
 
-### 5. 图生图 / Inpainting
+### 6. 图生图 / Inpainting
 
 ```bash
 apimart-cli image \
@@ -95,7 +114,7 @@ apimart-cli image \
   --mask-url "https://example.com/mask.png"
 ```
 
-### 6. 本地文件自动上传
+### 7. 本地文件自动上传
 
 `--image-url` 和 `--mask-url` 支持本地文件路径，自动上传：
 
@@ -104,7 +123,7 @@ apimart-cli image --prompt "吉卜力风格" --image-url ./my-photo.jpg
 apimart-cli image --prompt "换背景" --image-url ./photo.png --mask-url ./mask.png
 ```
 
-### 7. Dry-run 调试
+### 8. Dry-run 调试
 
 查看即将提交的 curl 命令，不实际调用 API：
 
@@ -144,6 +163,19 @@ export HTTP_PROXY="http://127.0.0.1:7890"
 ```
 
 支持 `http://`、`https://`、`socks5://` 协议。
+
+## 调试技巧
+
+```bash
+# 查看即将提交的完整请求 JSON
+apimart-cli image --prompt "test" -v
+
+# Dry-run：打印 curl 命令，不实际调用
+apimart-cli image --prompt "test" --dry-run
+
+# 保存 prompt 到 image_{task_id}.md
+apimart-cli image --prompt "A red fox" --save-prompt
+```
 
 ## 注意事项
 

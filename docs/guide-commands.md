@@ -20,8 +20,8 @@ apimart-cli models chat
 apimart-cli models --type image
 
 # APIMart 特定模型定价
-apimart-cli models pricing gpt-image-2-official
-apimart-cli models pricing doubao-seedance-2.0
+apimart-cli models --price gpt-image-2-official
+apimart-cli models --price doubao-seedance-2.0
 
 # OpenAI / OpenRouter 标准模型列表
 apimart-cli models --base-url "https://openrouter.ai/api/v1"

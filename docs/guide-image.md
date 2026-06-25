@@ -43,6 +43,7 @@ apimart-cli image < prompt.txt
 | `--json` | | JSON 输入（文件、字符串或 `-` 表示 stdin） | 通用 |
 | `--output` | | 下载目录（默认当前目录，支持相对/绝对路径） | 通用 |
 | `--save-prompt` | | 保存 prompt 到 `image_{task_id}.md` | 通用 |
+| `--verbose` | `-v` | 显示请求 JSON 和完整响应（全局 flag） | 通用 |
 | `--mode` | | 强制指定模式：`auto`、`sync`、`async` | 通用 |
 | `--dry-run` | | 打印 curl 不调用 API | 通用 |
 

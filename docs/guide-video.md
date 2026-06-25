@@ -53,3 +53,6 @@ apimart-cli video --json request.json
 | `--audio-url` | | 参考音频 URL（可重复） |
 | `--json` | | JSON 输入（文件、字符串或 `-` 表示 stdin） |
 | `--tool` | | 工具（如 `web_search`，可重复） |
+| `--output` | | 下载目录（默认当前目录） |
+| `--save-prompt` | | 保存 prompt 到 `video_{task_id}.md` |
+| `--verbose` | `-v` | 显示请求 JSON 和完整响应（全局 flag） |

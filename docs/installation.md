@@ -74,7 +74,7 @@ defaults:
     output_format: "png"
 
   video:
-    model: "grok-imagine-1.5-video-apimart"
+    model: "doubao-seedance-2.0"
 ```
 
 完整示例见 [config.example.yaml](../config.example.yaml)。
