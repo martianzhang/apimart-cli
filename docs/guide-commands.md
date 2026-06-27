@@ -2,29 +2,33 @@
 
 ## 查询模型列表
 
-支持两个数据源，自动根据 API 地址选择：
+支持三个数据源，自动根据 API 地址选择：
 
-| base_url | 数据源 | 特点 |
-|---|---|---|
-| APIMart 域名 | `GET /api/marketplace/models` | 按类型筛选、定价信息、免认证 |
-| 其他 | `GET /v1/models` | OpenAI 标准格式 |
+| base_url | `--type` 行为 | `--price` 行为 | 无参数行为 |
+|---|---|---|---|
+| APIMart 域名 | `GET /api/marketplace/models?type=...` | APIMart 定价 API | `GET /v1/models` |
+| OpenRouter 域名 | `GET /v1/images\|videos/models`（能力发现） | — | `GET /v1/models` |
+| 其他（OpenAI 等） | `GET /v1/models` | — | `GET /v1/models` |
 
 ```bash
-# APIMart 市场（所有模型）
+# 自动选择数据源
 apimart-cli models
 
 # APIMart 市场（按类型筛选）
-apimart-cli models image
-apimart-cli models video
-apimart-cli models chat
 apimart-cli models --type image
+apimart-cli models --type video
+apimart-cli models --type chat
 
 # APIMart 特定模型定价
 apimart-cli models --price gpt-image-2-official
-apimart-cli models --price doubao-seedance-2.0
 
-# OpenAI / OpenRouter 标准模型列表
-apimart-cli models --base-url "https://openrouter.ai/api/v1"
+# OpenRouter 模型发现（免认证，无需 API Key）
+# 自动调用 /v1/images/models 或 /v1/videos/models
+apimart-cli models --type image   # 展示架构、参数、能力
+apimart-cli models --type video
+
+# OpenAI 标准模型列表
+apimart-cli models --base-url "https://api.openai.com/v1"
 ```
 
 ## 查询任务状态
@@ -79,7 +83,12 @@ apimart-cli --version
 |---|---|---|
 | `POST /v1/chat/completions` | AI 对话 | 通用 ✅ |
 | `POST /v1/images/generations` | 文生图（同步/异步） | 通用 ✅ |
+| `POST /v1/images` | 文生图（OpenRouter 专用 API，支持 input_references） | OpenRouter ✅ |
+| `POST /v1/responses` | 文生图（OpenRouter Responses API，原生图片输出模型） | OpenRouter ✅ |
 | `POST /v1/videos/generations` | 文生视频 | APIMart ✅ |
+| `POST /v1/videos` | 文生视频（异步 submit → poll → download） | OpenRouter ✅ |
+| `GET /v1/images/models` | 图片模型发现（免认证，含参数能力描述） | OpenRouter ✅ |
+| `GET /v1/videos/models` | 视频模型发现（免认证） | OpenRouter ✅ |
 | `POST /v1/midjourney/generations` (及 16 个子端点) | Midjourney 图生/编辑 | APIMart ✅ |
 | `POST /v1/uploads/images` | 上传图片 | APIMart ✅ |
 | `GET /v1/tasks/{task_id}` | 查询任务状态 | APIMart ✅ |

@@ -32,12 +32,33 @@ apimart-cli image --help
 
 ### 使用 OpenRouter
 
+当 `base_url` 指向 `openrouter.ai` 时，工具自动适配 OpenRouter 的专有 API：
+
+| 命令 | OpenRouter 自动适配 |
+|---|---|
+| `image` | `POST /v1/images`（专用图片 API）或 `POST /v1/responses`（Responses API） |
+| `video` | `POST /v1/videos`（异步提交 → 轮询 → 下载） |
+| `models --type image\|video` | `GET /v1/images/models` / `GET /v1/videos/models`（免认证模型发现） |
+
 ```bash
 export OPENAI_API_KEY="sk-or-xxx"
 export OPENAI_BASE_URL="https://openrouter.ai/api/v1"
 
-apimart-cli chat --model "openai/gpt-4o" --message "Hello"
-apimart-cli image --model "openai/dall-e-3" --prompt "a cat"
+# 自动走 OpenRouter 专用图片 API
+apimart-cli image --model "openai/gpt-image-2" --prompt "a cat"
+
+# 自动走 OpenRouter 视频 API（提交 → 轮询 → 下载）
+apimart-cli video --model "google/veo-3.1" --prompt "a dog running"
+
+# 视频任务持久化，超时后可重新拉取
+apimart-cli video --job-id vid_xxx
+
+# 查看 OpenRouter 图片/视频模型（免认证）
+apimart-cli models --type image
+apimart-cli models --type video
+
+# AI 对话
+apimart-cli chat --model "openai/gpt-4.1-nano" --message "Hello"
 ```
 
 ### 使用任意 OpenAI 兼容中转
@@ -53,12 +74,12 @@ apimart-cli chat --message "Hello"
 
 ```
 apimart-cli
-├── image      图片生成（同步/异步）→  docs/guide-image.md
-├── video      视频生成               →  docs/guide-video.md
+├── image      图片生成（同步/异步/OpenRouter 专用 API）→  docs/guide-image.md
+├── video      视频生成（APIMart 异步 / OpenRouter 异步）→  docs/guide-video.md
 ├── midjourney Midjourney 生成/编辑    →  docs/guide-midjourney.md
 │   └── mj     别名，同上
 ├── chat       AI 对话               →  docs/guide-chat.md
-├── models     模型列表及定价
+├── models     模型列表（APIMart 市场 / OpenRouter 发现 / OpenAI 兼容）
 ├── task       查询任务状态（APIMart）
 ├── balance    查询余额（APIMart）
 └── mcp        MCP Server 🧪        →  docs/mcp.md

@@ -2,6 +2,18 @@
 
 支持文生视频、图生视频、首尾帧、参考视频、音频视频、VEO3 Remix 续拍等模式。
 
+## 自动兼容
+
+根据 `base_url` 自动选择视频 API：
+
+| Provider | 接口 | 模式 |
+|---|---|---|
+| APIMart | `POST /v1/videos/generations` | 异步 task → poll → download |
+| OpenRouter | `POST /v1/videos` | 异步 submit → poll → download |
+| 其他 | 不支持 | — |
+
+当 `base_url` 包含 `openrouter.ai` 时，自动切换到 OpenRouter 视频 API。
+
 ## 基本用法
 
 ```bash
@@ -79,6 +91,51 @@ apimart-cli video --remix \
 | `--raw` | 只返回续拍部分，不含原视频 |
 | `--size` / `-s` | 宽高比：`16:9`、`9:16` |
 | `--resolution` / `-r` | 分辨率：`720p`（默认）、`1080p`、`4k` |
+
+## OpenRouter 视频（自动适配）
+
+当检测到 OpenRouter 时，使用专用视频 API（`POST /v1/videos`）：
+
+```bash
+# 文生视频
+apimart-cli video --prompt "A golden retriever playing fetch" \
+  --model "google/veo-3.1"
+
+# 图生视频（首帧）
+apimart-cli video --prompt "The dog runs toward the camera" \
+  --model "google/veo-3.1" \
+  --image-url https://example.com/dog.jpg
+
+# 指定参数
+apimart-cli video --prompt "City timelapse" \
+  --model "google/veo-3.1" \
+  --resolution 720p --duration 8
+```
+
+### 任务持久化（--job-id）
+
+OpenRouter 视频生成是异步的（30 秒到几分钟）。提交后自动保存 job 信息，超时或断线后可重新拉取：
+
+```bash
+# 提交视频任务（自动保存 job 文件）
+apimart-cli video --prompt "A kitten walking" --model "google/veo-3.1"
+# → Job info saved. Resume later with: --job-id vid_xxx
+
+# 断了之后重新拉取下载
+apimart-cli video --job-id vid_xxx
+```
+
+Job 文件保存在 `video_job_{jobId}.json`，内含 `polling_url`、`model`、`prompt`、`created_at` 信息。
+
+### 常用 OpenRouter 视频模型
+
+| 模型 ID | 说明 |
+|---|---|
+| `google/veo-3.1` | Google Veo 3.1 |
+| `google/veo-3.0` | Google Veo 3.0 |
+| `minimax/video` | MiniMax 视频模型 |
+
+使用 `apimart-cli models --type video`（免认证）查看完整列表。
 
 ## 参数
 
