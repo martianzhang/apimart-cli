@@ -1,0 +1,366 @@
+package client
+
+import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/martianzhang/apimart-cli/internal/types"
+)
+
+// ---------------------------------------------------------------------------
+// OpenRouter Image — Responses API
+// ---------------------------------------------------------------------------
+
+// Image generation and video generation on OpenRouter can take 60-120s.
+const openrouterRequestTimeout = 120 * time.Second
+
+// OpenRouterImageGenerate sends a text-to-image request via OpenRouter's
+// Responses API (POST /v1/responses) with image output modalities.
+func (c *Client) OpenRouterImageGenerate(req *types.OpenRouterImageRequest) (*types.OpenRouterImageResponse, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequest(http.MethodPost, c.baseURL+"/responses", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	c.setOpenRouterHeaders(httpReq)
+
+	oldTimeout := c.httpClient.Timeout
+	c.httpClient.Timeout = openrouterRequestTimeout
+	defer func() { c.httpClient.Timeout = oldTimeout }()
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("OpenRouter image API returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result types.OpenRouterImageResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+	return &result, nil
+}
+
+// ExtractImagesFromResponse extracts base64-encoded images from an OpenRouter
+// image_generation_call output items and saves them to the output directory.
+// Returns the list of saved file paths.
+func ExtractImagesFromResponse(resp *types.OpenRouterImageResponse, outputDir, baseName string) ([]string, error) {
+	var saved []string
+	imgIdx := 0
+	for _, item := range resp.Output {
+		if item.Type != "image_generation_call" || item.Status != "completed" || item.Result == "" {
+			continue
+		}
+		// result is a data URL: "data:image/png;base64,iVBOR..."
+		dataURL := item.Result
+		if !strings.HasPrefix(dataURL, "data:") {
+			continue
+		}
+
+		// Extract base64 payload
+		commaIdx := strings.Index(dataURL, ",")
+		if commaIdx < 0 {
+			continue
+		}
+		b64 := dataURL[commaIdx+1:]
+
+		// Guess extension from MIME type
+		mimePart := dataURL[len("data:"):commaIdx]
+		ext := ".png"
+		if strings.Contains(mimePart, "jpeg") || strings.Contains(mimePart, "jpg") {
+			ext = ".jpg"
+		} else if strings.Contains(mimePart, "webp") {
+			ext = ".webp"
+		}
+
+		raw, err := base64.StdEncoding.DecodeString(b64)
+		if err != nil {
+			return saved, fmt.Errorf("failed to decode base64 image: %w", err)
+		}
+
+		filename := filepath.Join(outputDir, fmt.Sprintf("%s_%d%s", baseName, imgIdx, ext))
+		if err := os.WriteFile(filename, raw, 0644); err != nil {
+			return saved, fmt.Errorf("failed to save image %s: %w", filename, err)
+		}
+		saved = append(saved, filename)
+		imgIdx++
+	}
+	return saved, nil
+}
+
+// ---------------------------------------------------------------------------
+// OpenRouter Image — Dedicated Image API (POST /api/v1/images)
+// This is the primary path for GPT Image, DALL-E, and most image models on OpenRouter.
+// Returns OpenAI-compatible response format with b64_json.
+// ---------------------------------------------------------------------------
+
+// OpenRouterDedicatedImage sends a text-to-image request via OpenRouter's
+// dedicated Image API (POST /v1/images). Returns standard OpenAI-compatible response.
+// Supports input_references (image-to-image) via req.ImageURLs.
+func (c *Client) OpenRouterDedicatedImage(req *types.GenerateRequest) (*types.OpenAIImageResponse, error) {
+	// Build request body with OpenRouter-specific field mapping.
+	// OpenRouter uses "input_references" instead of "image_urls" for reference images.
+	bodyMap := map[string]interface{}{
+		"model":  req.Model,
+		"prompt": req.Prompt,
+	}
+	if req.Size != "" {
+		bodyMap["size"] = req.Size
+	}
+	if req.Quality != "" {
+		bodyMap["quality"] = req.Quality
+	}
+	if req.OutputFormat != "" {
+		bodyMap["output_format"] = req.OutputFormat
+	}
+	if req.Background != "" {
+		bodyMap["background"] = req.Background
+	}
+	if req.Resolution != "" {
+		bodyMap["resolution"] = req.Resolution
+	}
+	if req.N != nil {
+		bodyMap["n"] = *req.N
+	}
+	if req.OutputCompression != nil {
+		bodyMap["output_compression"] = *req.OutputCompression
+	}
+
+	// Map image_urls → input_references (OpenRouter format)
+	if len(req.ImageURLs) > 0 {
+		refs := make([]map[string]interface{}, len(req.ImageURLs))
+		for i, u := range req.ImageURLs {
+			refs[i] = map[string]interface{}{
+				"type": "image_url",
+				"image_url": map[string]string{
+					"url": u,
+				},
+			}
+		}
+		bodyMap["input_references"] = refs
+	}
+
+	body, err := json.Marshal(bodyMap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequest(http.MethodPost, c.baseURL+"/images", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	c.setOpenRouterHeaders(httpReq)
+
+	oldTimeout := c.httpClient.Timeout
+	c.httpClient.Timeout = openrouterRequestTimeout
+	defer func() { c.httpClient.Timeout = oldTimeout }()
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("OpenRouter image API returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result types.OpenAIImageResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+	return &result, nil
+}
+
+// ---------------------------------------------------------------------------
+// OpenRouter Video — dedicated async API (POST /api/v1/videos)
+// ---------------------------------------------------------------------------
+
+// OpenRouterVideoSubmit submits a video generation job and returns the job info.
+func (c *Client) OpenRouterVideoSubmit(req *types.OpenRouterVideoRequest) (*types.OpenRouterVideoSubmitResponse, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequest(http.MethodPost, c.baseURL+"/videos", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	c.setOpenRouterHeaders(httpReq)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("OpenRouter video API returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result types.OpenRouterVideoSubmitResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+	return &result, nil
+}
+
+// OpenRouterVideoPoll polls the video job status using the polling URL.
+func (c *Client) OpenRouterVideoPoll(pollingURL string) (*types.OpenRouterVideoStatusResponse, error) {
+	httpReq, err := http.NewRequest(http.MethodGet, pollingURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create poll request: %w", err)
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	c.setOpenRouterHeaders(httpReq)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("poll request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read poll response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("poll returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result types.OpenRouterVideoStatusResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse poll response: %w", err)
+	}
+	return &result, nil
+}
+
+// OpenRouterVideoGet queries a video job by its ID via GET /v1/videos/{id}.
+func (c *Client) OpenRouterVideoGet(jobID string) (*types.OpenRouterVideoStatusResponse, error) {
+	httpReq, err := http.NewRequest(http.MethodGet, c.baseURL+"/videos/"+jobID, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create get request: %w", err)
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	c.setOpenRouterHeaders(httpReq)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("get request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read get response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("get video job returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result types.OpenRouterVideoStatusResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse get response: %w", err)
+	}
+	return &result, nil
+}
+
+// OpenRouterVideoDownload downloads the video from an unsigned URL and saves it.
+func (c *Client) OpenRouterVideoDownload(url, dest string) error {
+	httpReq, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create download request: %w", err)
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("download request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("download returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read download response: %w", err)
+	}
+
+	return os.WriteFile(dest, data, 0644)
+}
+
+// OpenRouterVideoPollUntilComplete polls a video job until completion or failure.
+// pollInterval: time between polls (default 30s if zero).
+// maxWait: maximum total wait time (default 5min if zero).
+func (c *Client) OpenRouterVideoPollUntilComplete(pollingURL string, pollInterval, maxWait time.Duration) (*types.OpenRouterVideoStatusResponse, error) {
+	if pollInterval == 0 {
+		pollInterval = 30 * time.Second
+	}
+	if maxWait == 0 {
+		maxWait = 5 * time.Minute
+	}
+
+	start := time.Now()
+	for {
+		if time.Since(start) > maxWait {
+			return nil, fmt.Errorf("video polling timed out after %v", maxWait)
+		}
+
+		resp, err := c.OpenRouterVideoPoll(pollingURL)
+		if err != nil {
+			return nil, fmt.Errorf("poll failed: %w", err)
+		}
+
+		switch resp.Status {
+		case "completed":
+			return resp, nil
+		case "failed", "cancelled", "expired":
+			errMsg := resp.Error
+			if errMsg == "" {
+				errMsg = resp.Status
+			}
+			return nil, fmt.Errorf("video generation %s: %s", resp.Status, errMsg)
+		default:
+			// pending / running — keep waiting
+			time.Sleep(pollInterval)
+		}
+	}
+}

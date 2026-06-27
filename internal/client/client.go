@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	defaultBaseURL   = "https://api.apimart.ai/v1"
+	defaultBaseURL   = "https://api.apimart.ai"
 	imageSubmitPath  = "/images/generations"
 	videoSubmitPath  = "/videos/generations"
 	chatPath         = "/chat/completions"
@@ -37,6 +37,8 @@ const (
 	initialDelay    = 10 * time.Second
 	maxPollDuration = 180 * time.Second
 	uploadTimeout   = 60 * time.Second
+	// Default HTTP client timeout for API requests
+	defaultHTTPTimeout = 120 * time.Second
 )
 
 // Client is the API client for image generation, chat, and more.
@@ -87,7 +89,7 @@ func New(apiKey, baseURL, proxyURL string) *Client {
 		title:   os.Getenv("OPENAI_APP_TITLE"),
 		httpClient: &http.Client{
 			Transport: transport,
-			Timeout:   30 * time.Second,
+			Timeout:   defaultHTTPTimeout,
 		},
 	}
 }
@@ -563,6 +565,26 @@ func (c *Client) IsAPIMartProvider() bool {
 // isAPIMartURL checks whether the given URL belongs to an APIMart-provided domain.
 func isAPIMartURL(baseURL string) bool {
 	for _, d := range apimartDomains {
+		if strings.Contains(baseURL, d) {
+			return true
+		}
+	}
+	return false
+}
+
+// openrouterDomains lists domains where OpenRouter APIs are served.
+var openrouterDomains = []string{
+	"openrouter.ai",
+}
+
+// IsOpenRouterProvider returns true if the base URL points to OpenRouter.
+func (c *Client) IsOpenRouterProvider() bool {
+	return isOpenRouterURL(c.baseURL)
+}
+
+// isOpenRouterURL checks whether the given URL belongs to OpenRouter.
+func isOpenRouterURL(baseURL string) bool {
+	for _, d := range openrouterDomains {
 		if strings.Contains(baseURL, d) {
 			return true
 		}
