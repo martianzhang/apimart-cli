@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/martianzhang/apimart-cli/internal/provider"
 	"github.com/martianzhang/apimart-cli/internal/types"
 )
 
@@ -549,47 +550,14 @@ func getBalance[T any](c *Client, url string) (*T, error) {
 
 // --- Provider detection ---
 
-// apimartDomains lists known APIMart-provided API domains that use async task model.
-var apimartDomains = []string{
-	"apimart.ai",
-	"apib.ai",
-	"aiuxu.com",
-	"aishuch.com",
-}
-
 // IsAPIMartProvider returns true if the base URL points to an APIMart-provided domain.
 func (c *Client) IsAPIMartProvider() bool {
-	return isAPIMartURL(c.baseURL)
-}
-
-// isAPIMartURL checks whether the given URL belongs to an APIMart-provided domain.
-func isAPIMartURL(baseURL string) bool {
-	for _, d := range apimartDomains {
-		if strings.Contains(baseURL, d) {
-			return true
-		}
-	}
-	return false
-}
-
-// openrouterDomains lists domains where OpenRouter APIs are served.
-var openrouterDomains = []string{
-	"openrouter.ai",
+	return provider.IsAPIMart(c.baseURL)
 }
 
 // IsOpenRouterProvider returns true if the base URL points to OpenRouter.
 func (c *Client) IsOpenRouterProvider() bool {
-	return isOpenRouterURL(c.baseURL)
-}
-
-// isOpenRouterURL checks whether the given URL belongs to OpenRouter.
-func isOpenRouterURL(baseURL string) bool {
-	for _, d := range openrouterDomains {
-		if strings.Contains(baseURL, d) {
-			return true
-		}
-	}
-	return false
+	return provider.IsOpenRouter(c.baseURL)
 }
 
 // --- Sync image generation (OpenAI / OpenRouter compatible) ---

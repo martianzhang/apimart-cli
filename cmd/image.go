@@ -15,6 +15,7 @@ import (
 
 	"github.com/martianzhang/apimart-cli/internal/client"
 	"github.com/martianzhang/apimart-cli/internal/config"
+	"github.com/martianzhang/apimart-cli/internal/provider"
 	"github.com/martianzhang/apimart-cli/internal/types"
 )
 
@@ -384,11 +385,7 @@ func runAsyncImage(c *client.Client, req *types.GenerateRequest) error {
 
 // isOpenRouterProvider determines whether the current base URL points to OpenRouter.
 func isOpenRouterProvider() bool {
-	base := apiBase
-	if base == "" {
-		return false
-	}
-	return strings.Contains(base, "openrouter.ai")
+	return provider.IsOpenRouter(apiBase)
 }
 
 // usesOpenRouterResponsesAPI returns true if the model should use OpenRouter's
@@ -419,15 +416,7 @@ func isAPIMartProvider() bool {
 		if base == "" {
 			base = "https://api.apimart.ai"
 		}
-		// Check against known APIMart async domains
-		apimartDomains := []string{"apimart.ai", "apib.ai", "aiuxu.com", "aishuch.com"}
-		for _, d := range apimartDomains {
-			if strings.Contains(base, d) {
-				return true
-			}
-		}
-		// Everything else (openai.com, openrouter.ai, or any relay) → sync
-		return false
+		return provider.IsAPIMart(base)
 	}
 }
 
