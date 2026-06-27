@@ -53,6 +53,7 @@ type GenerateRequest struct {
 type OpenAIImageResponse struct {
 	Created int64             `json:"created"`
 	Data    []OpenAIImageData `json:"data"`
+	Usage   *OpenAIImageUsage `json:"usage,omitempty"`
 }
 
 // OpenAIImageData represents a single generated image in sync mode.
@@ -60,6 +61,14 @@ type OpenAIImageData struct {
 	URL           string `json:"url,omitempty"`
 	B64JSON       string `json:"b64_json,omitempty"`
 	RevisedPrompt string `json:"revised_prompt,omitempty"`
+}
+
+// OpenAIImageUsage holds token and cost information for image generation.
+type OpenAIImageUsage struct {
+	PromptTokens     int     `json:"prompt_tokens,omitempty"`
+	CompletionTokens int     `json:"completion_tokens,omitempty"`
+	TotalTokens      int     `json:"total_tokens,omitempty"`
+	Cost             float64 `json:"cost,omitempty"`
 }
 
 // GenerateResponse is the response from POST /v1/images/generations.
