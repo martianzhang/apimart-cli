@@ -63,15 +63,22 @@ func runModels(cmd *cobra.Command, args []string) error {
 		return runModelsPricing(priceArg)
 	}
 
-	// --type or --price (bare) → marketplace
+	// --type or --price (bare) → marketplace or OpenRouter discovery
 	if priceChanged || modelType != "" {
 		cmdPriceChanged = priceChanged
+		// OpenRouter has its own model discovery endpoints for image/video
+		if isOpenRouterProvider() && knownMediaTypes[mediaType] {
+			return runModelsOpenRouterDiscovery(mediaType)
+		}
 		return runModelsMarketplace(mediaType)
 	}
 
-	// Positional arg alone: known media type → marketplace, else → /v1/models/{model}
+	// Positional arg alone: known media type → marketplace or OpenRouter, else → /v1/models/{model}
 	if len(args) > 0 {
 		if knownMediaTypes[args[0]] {
+			if isOpenRouterProvider() {
+				return runModelsOpenRouterDiscovery(args[0])
+			}
 			return runModelsMarketplace(args[0])
 		}
 		return runModelsDetail(args[0])
@@ -185,6 +192,110 @@ func runModelsMarketplace(mediaType string) error {
 		fmt.Println()
 	}
 	return nil
+}
+
+// runModelsOpenRouterDiscovery fetches models from OpenRouter's model discovery endpoints.
+// image → GET /api/v1/images/models, video → GET /api/v1/videos/models
+func runModelsOpenRouterDiscovery(mediaType string) error {
+	base := apiBase
+	if base == "" {
+		return fmt.Errorf("OpenRouter base URL is not configured")
+	}
+	base = strings.TrimRight(base, "/")
+
+	// e.g. https://openrouter.ai/api/v1 + /images/models → https://openrouter.ai/api/v1/images/models
+	endpoint := base + "/" + mediaType + "s/models"
+	if mediaType == "chat" {
+		endpoint = base + "/models"
+	}
+
+	client := httpProxyClient()
+	resp, err := client.Get(endpoint)
+	if err != nil {
+		return fmt.Errorf("failed to fetch %s models: %w", mediaType, err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Check for HTML response (proxy/gateway returning block page)
+	if isHTML(body) {
+		return fmt.Errorf("expected JSON response but got HTML — check proxy or network connectivity to %s", endpoint)
+	}
+
+	var list types.OpenRouterMediaModelList
+	if err := json.Unmarshal(body, &list); err != nil {
+		return fmt.Errorf("failed to parse response from %s: %w", endpoint, err)
+	}
+
+	if len(list.Data) == 0 {
+		fmt.Println("No models found.")
+		return nil
+	}
+
+	title := strings.ToUpper(mediaType[:1]) + mediaType[1:] + " Models"
+	fmt.Printf("\n%s (%d)\n\n", title, len(list.Data))
+
+	for _, m := range list.Data {
+		fmt.Printf("  %s\n", m.ID)
+		if m.Name != "" && m.Name != m.ID {
+			fmt.Printf("    ─ %s\n", m.Name)
+		}
+		if m.Architecture != nil {
+			in := strings.Join(m.Architecture.InputModalities, ", ")
+			out := strings.Join(m.Architecture.OutputModalities, ", ")
+			fmt.Printf("    ─ %s → %s\n", in, out)
+		}
+		if m.SupportsStreaming {
+			fmt.Printf("    ─ streaming\n")
+		}
+		// Show key supported parameters on one line
+		var params []string
+		for k, desc := range m.SupportedParameters {
+			switch desc.Type {
+			case "boolean":
+				params = append(params, k)
+			case "enum":
+				v := desc.Values
+				if len(v) > 6 {
+					v = append(v[:6], "...")
+				}
+				params = append(params, fmt.Sprintf("%s=%s", k, strings.Join(v, "|")))
+			case "range":
+				if desc.Min != nil && desc.Max != nil {
+					params = append(params, fmt.Sprintf("%s=%d-%d", k, *desc.Min, *desc.Max))
+				} else {
+					params = append(params, k)
+				}
+			}
+		}
+		if len(params) > 0 {
+			fmt.Printf("    ─ %s\n", strings.Join(params, ", "))
+		}
+		fmt.Println()
+	}
+	return nil
+}
+
+// isHTML checks whether the first non-whitespace bytes look like HTML.
+func isHTML(body []byte) bool {
+	for _, b := range body {
+		switch {
+		case b == ' ' || b == '\t' || b == '\n' || b == '\r':
+			continue
+		case b == '<':
+			return true
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // cmdPriceChanged is set by runModels before it dispatches to marketplace,
