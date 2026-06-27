@@ -340,14 +340,14 @@ type ModelPricingData struct {
 
 // Config represents the YAML configuration file structure.
 type Config struct {
-	APIKey     string          `mapstructure:"api_key" yaml:"api_key"`
-	BaseURL    string          `mapstructure:"base_url" yaml:"base_url"`
-	HTTPProxy  string          `mapstructure:"http_proxy" yaml:"http_proxy"`
+	APIKey     string          `mapstructure:"api_key" yaml:"api_key,omitempty"`
+	BaseURL    string          `mapstructure:"base_url" yaml:"base_url,omitempty"`
+	HTTPProxy  string          `mapstructure:"http_proxy" yaml:"http_proxy,omitempty"`
 	Verbose    bool            `mapstructure:"verbose" yaml:"verbose"`
 	SavePrompt bool            `mapstructure:"save_prompt" yaml:"save_prompt"`
-	Mode       string          `mapstructure:"mode" yaml:"mode"` // sync, async, or "" for auto
-	OutputDir  string          `mapstructure:"output_dir" yaml:"output_dir"`
-	Defaults   *ConfigDefaults `mapstructure:"defaults" yaml:"defaults"`
+	Mode       string          `mapstructure:"mode" yaml:"mode,omitempty"`
+	OutputDir  string          `mapstructure:"output_dir" yaml:"output_dir,omitempty"`
+	Defaults   *ConfigDefaults `mapstructure:"defaults" yaml:"defaults,omitempty"`
 }
 
 // ConfigDefaults holds modality-specific default values.
@@ -360,26 +360,26 @@ type ConfigDefaults struct {
 
 // ChatDefaults holds default values for chat completion.
 type ChatDefaults struct {
-	Model       string  `mapstructure:"model" yaml:"model"`
-	Temperature float64 `mapstructure:"temperature" yaml:"temperature"`
-	MaxTokens   int     `mapstructure:"max_tokens" yaml:"max_tokens"`
+	Model       string  `mapstructure:"model" yaml:"model,omitempty"`
+	Temperature float64 `mapstructure:"temperature" yaml:"temperature,omitempty"`
+	MaxTokens   int     `mapstructure:"max_tokens" yaml:"max_tokens,omitempty"`
 }
 
 // ImageDefaults holds default values for image generation.
 type ImageDefaults struct {
-	Model             string   `mapstructure:"model" yaml:"model"`
-	Size              string   `mapstructure:"size" yaml:"size"`
-	Resolution        string   `mapstructure:"resolution" yaml:"resolution"`
-	Quality           string   `mapstructure:"quality" yaml:"quality"`
-	Background        string   `mapstructure:"background" yaml:"background"`
-	Moderation        string   `mapstructure:"moderation" yaml:"moderation"`
-	OutputFormat      string   `mapstructure:"output_format" yaml:"output_format"`
-	OutputCompression *int     `mapstructure:"output_compression" yaml:"output_compression"`
-	N                 *int     `mapstructure:"n" yaml:"n"`
-	ImageURLs         []string `mapstructure:"image_urls" yaml:"image_urls"`
-	MaskURL           string   `mapstructure:"mask_url" yaml:"mask_url"`
-	Style             string   `mapstructure:"style" yaml:"style"`
-	ResponseFormat    string   `mapstructure:"response_format" yaml:"response_format"`
+	Model             string   `mapstructure:"model" yaml:"model,omitempty"`
+	Size              string   `mapstructure:"size" yaml:"size,omitempty"`
+	Resolution        string   `mapstructure:"resolution" yaml:"resolution,omitempty"`
+	Quality           string   `mapstructure:"quality" yaml:"quality,omitempty"`
+	Background        string   `mapstructure:"background" yaml:"background,omitempty"`
+	Moderation        string   `mapstructure:"moderation" yaml:"moderation,omitempty"`
+	OutputFormat      string   `mapstructure:"output_format" yaml:"output_format,omitempty"`
+	OutputCompression *int     `mapstructure:"output_compression" yaml:"output_compression,omitempty"`
+	N                 *int     `mapstructure:"n" yaml:"n,omitempty"`
+	ImageURLs         []string `mapstructure:"image_urls" yaml:"image_urls,omitempty"`
+	MaskURL           string   `mapstructure:"mask_url" yaml:"mask_url,omitempty"`
+	Style             string   `mapstructure:"style" yaml:"style,omitempty"`
+	ResponseFormat    string   `mapstructure:"response_format" yaml:"response_format,omitempty"`
 }
 
 // MergeIntoImage applies non-zero default values to an image generation request.
@@ -430,23 +430,23 @@ func (d *ImageDefaults) MergeIntoImage(req *GenerateRequest) {
 
 // VideoDefaults holds default values for video generation.
 type VideoDefaults struct {
-	Model      string   `mapstructure:"model" yaml:"model"`
-	Size       string   `mapstructure:"size" yaml:"size"`
-	Resolution string   `mapstructure:"resolution" yaml:"resolution"`
-	Duration   *int     `mapstructure:"duration" yaml:"duration"`
-	ImageURLs  []string `mapstructure:"image_urls" yaml:"image_urls"`
-	VideoURLs  []string `mapstructure:"video_urls" yaml:"video_urls"`
-	AudioURLs  []string `mapstructure:"audio_urls" yaml:"audio_urls"`
+	Model      string   `mapstructure:"model" yaml:"model,omitempty"`
+	Size       string   `mapstructure:"size" yaml:"size,omitempty"`
+	Resolution string   `mapstructure:"resolution" yaml:"resolution,omitempty"`
+	Duration   *int     `mapstructure:"duration" yaml:"duration,omitempty"`
+	ImageURLs  []string `mapstructure:"image_urls" yaml:"image_urls,omitempty"`
+	VideoURLs  []string `mapstructure:"video_urls" yaml:"video_urls,omitempty"`
+	AudioURLs  []string `mapstructure:"audio_urls" yaml:"audio_urls,omitempty"`
 }
 
 // MidjourneyDefaults holds default values for Midjourney generation.
 type MidjourneyDefaults struct {
-	Speed   string `mapstructure:"speed" yaml:"speed"`
-	Version string `mapstructure:"version" yaml:"version"`
-	Style   string `mapstructure:"style" yaml:"style"`
-	Size    string `mapstructure:"size" yaml:"size"`
-	Quality string `mapstructure:"quality" yaml:"quality"`
-	Niji    *bool  `mapstructure:"niji" yaml:"niji"`
+	Speed   string `mapstructure:"speed" yaml:"speed,omitempty"`
+	Version string `mapstructure:"version" yaml:"version,omitempty"`
+	Style   string `mapstructure:"style" yaml:"style,omitempty"`
+	Size    string `mapstructure:"size" yaml:"size,omitempty"`
+	Quality string `mapstructure:"quality" yaml:"quality,omitempty"`
+	Niji    *bool  `mapstructure:"niji" yaml:"niji,omitempty"`
 }
 
 // MergeIntoImagine applies non-zero default values to an MJ imagine request.
