@@ -210,12 +210,14 @@ func runOpenRouterImage(c *client.Client, req *types.GenerateRequest) error {
 		return fmt.Errorf("OpenRouter image generation failed: %w", err)
 	}
 
+	fmt.Printf("Model: %s\n", orResp.Model)
+
 	// Print model text response (if any)
 	for _, item := range orResp.Output {
 		if item.Type == "message" {
 			for _, block := range item.Content {
 				if block.Type == "text" && block.Text != "" {
-					fmt.Printf("Model: %s\n", block.Text)
+					fmt.Printf("Response: %s\n", block.Text)
 				}
 			}
 		}
@@ -228,7 +230,6 @@ func runOpenRouterImage(c *client.Client, req *types.GenerateRequest) error {
 		return fmt.Errorf("failed to extract images: %w", err)
 	}
 
-	fmt.Printf("Model: %s\n", orResp.Model)
 	fmt.Printf("Images generated: %d\n", len(saved))
 	for _, f := range saved {
 		fmt.Printf("Saved: %s\n", f)
@@ -255,6 +256,7 @@ func runOpenRouterDedicatedImage(c *client.Client, req *types.GenerateRequest) e
 		return fmt.Errorf("OpenRouter image generation failed: %w", err)
 	}
 
+	fmt.Printf("Model: %s\n", req.Model)
 	createdAt := time.Unix(orResp.Created, 0).Format("2006-01-02 15:04:05")
 	fmt.Printf("Created: %s\n", createdAt)
 
@@ -339,6 +341,7 @@ func runSyncImage(c *client.Client, req *types.GenerateRequest) error {
 		return fmt.Errorf("image generation failed: %w", err)
 	}
 
+	fmt.Printf("Model: %s\n", req.Model)
 	fmt.Printf("Created: %d\n", syncResp.Created)
 	for i, img := range syncResp.Data {
 		url := img.URL
@@ -384,6 +387,7 @@ func runAsyncImage(c *client.Client, req *types.GenerateRequest) error {
 	}
 
 	task := resp.Data[0]
+	fmt.Printf("Model: %s\n", req.Model)
 	fmt.Printf("Response code: %d\n", resp.Code)
 	fmt.Printf("Task ID: %s\n", task.TaskID)
 	fmt.Printf("Status: %s\n\n", task.Status)

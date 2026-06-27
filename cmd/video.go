@@ -201,6 +201,7 @@ func runAPIMartVideo(req *types.VideoGenerateRequest) error {
 	}
 
 	task := resp.Data[0]
+	fmt.Printf("Model: %s\n", req.Model)
 	fmt.Printf("Response code: %d\n", resp.Code)
 	fmt.Printf("Task ID: %s\n", task.TaskID)
 	fmt.Printf("Status: %s\n\n", task.Status)
@@ -512,6 +513,7 @@ func runOpenRouterVideo(req *types.VideoGenerateRequest) error {
 		return fmt.Errorf("OpenRouter video submission failed: %w", err)
 	}
 
+	fmt.Printf("Model: %s\n", orReq.Model)
 	fmt.Printf("Video job submitted.\n")
 	fmt.Printf("Job ID: %s\n", submitResp.ID)
 	fmt.Printf("Status: %s\n\n", submitResp.Status)
