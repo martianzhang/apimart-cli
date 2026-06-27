@@ -106,6 +106,16 @@ func runPrintConfig() {
 	if displayCfg.Defaults == nil {
 		displayCfg.Defaults = &types.ConfigDefaults{}
 	}
+	if displayCfg.Defaults.Image == nil {
+		displayCfg.Defaults.Image = &types.ImageDefaults{}
+	}
+
+	// CLI --model overrides config's image model (also applies to video/chat at runtime)
+	var origImageModel string
+	if model != "" {
+		origImageModel = displayCfg.Defaults.Image.Model
+		displayCfg.Defaults.Image.Model = model
+	}
 
 	// Build annotations
 	var configNote, baseURLNote, apiKeyNote, proxyNote string
@@ -175,9 +185,20 @@ func runPrintConfig() {
 	lines := strings.Split(strings.TrimRight(string(b), "\n"), "\n")
 
 	// Print YAML with inline annotations where applicable
+	defaultsSection := "" // track which sub-section we're in under "defaults:"
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
+		indent := len(line) - len(strings.TrimLeft(line, " "))
 		key := strings.SplitN(trimmed, ":", 2)[0]
+
+		// Track YAML section context for nested annotations
+		if trimmed == "defaults:" {
+			defaultsSection = "root" // entered defaults
+		} else if defaultsSection != "" && indent == 4 && strings.HasSuffix(trimmed, ":") {
+			defaultsSection = strings.TrimSuffix(trimmed, ":") // "image", "video", etc.
+		} else if indent < 4 {
+			defaultsSection = "" // left the defaults block
+		}
 
 		var annotation string
 		switch key {
@@ -185,6 +206,14 @@ func runPrintConfig() {
 			annotation = baseURLNote
 		case "api_key":
 			annotation = apiKeyNote
+		case "model":
+			if model != "" && defaultsSection == "image" {
+				if origImageModel != "" && origImageModel != model {
+					annotation = fmt.Sprintf("--model overrides config (orig: %s)", origImageModel)
+				} else if origImageModel == "" {
+					annotation = fmt.Sprintf("--model: %s", model)
+				}
+			}
 		}
 		if annotation != "" {
 			fmt.Printf("%s  # %s\n", line, annotation)
