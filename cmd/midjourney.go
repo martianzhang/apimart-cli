@@ -15,7 +15,7 @@ import (
 
 // newMJClient creates a client with Midjourney's default timeout.
 func newMJClient() client.APIClient {
-	c := client.New(apiKey, apiBase, httpProxy)
+	c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 	applyTimeout(c, "midjourney", client.MJTimeout)
 	return c
 }
@@ -332,7 +332,7 @@ func setMJBoolFlag(cmd *cobra.Command, name string, target **bool, val bool) {
 
 func buildMJCurl(action string, reqBody any) string {
 	body, _ := json.Marshal(reqBody)
-	base := apiBase
+	base := shared.APIBase
 	if base == "" {
 		base = "https://api.apimart.ai/v1"
 	}
@@ -340,7 +340,7 @@ func buildMJCurl(action string, reqBody any) string {
 	url := base + "/midjourney/generations/" + action
 
 	cmd := fmt.Sprintf("curl -X POST %s \\\n", url)
-	cmd += fmt.Sprintf("  -H \"Authorization: Bearer %s\" \\\n", apiKey)
+	cmd += fmt.Sprintf("  -H \"Authorization: Bearer %s\" \\\n", shared.APIKey)
 	cmd += "  -H \"Content-Type: application/json\" \\\n"
 	cmd += fmt.Sprintf("  -d '%s'", string(body))
 	return cmd
@@ -357,7 +357,7 @@ func runMJSubmitAndPoll(c client.APIClient, action string, req any) error {
 		return nil
 	}
 
-	if verbose {
+	if shared.Verbose {
 		prettyReq, _ := json.MarshalIndent(req, "", "  ")
 		fmt.Printf("Request:\n%s\n\n", string(prettyReq))
 	}
@@ -397,7 +397,7 @@ func displayMJResult(task *types.MJTaskData) {
 		return
 	}
 
-	if verbose {
+	if shared.Verbose {
 		pretty, _ := json.MarshalIndent(task, "", "  ")
 		fmt.Printf("\nTask result:\n%s\n", string(pretty))
 	}
@@ -465,7 +465,7 @@ func registerMJTaskActionSubcommand(name, short, long, action string) *cobra.Com
 				return err
 			}
 			// Merge config defaults
-			if cfg, err := config.LoadDefaults(cfgFile); err == nil && cfg != nil && cfg.Defaults != nil && cfg.Defaults.Midjourney != nil {
+			if cfg, err := config.LoadDefaults(shared.CfgFile); err == nil && cfg != nil && cfg.Defaults != nil && cfg.Defaults.Midjourney != nil {
 				// Only speed is relevant for task actions
 				if req.Speed == "" && cfg.Defaults.Midjourney.Speed != "" {
 					req.Speed = cfg.Defaults.Midjourney.Speed
@@ -502,7 +502,7 @@ Examples:
 		}
 
 		// Merge config defaults
-		if cfg, err := config.LoadDefaults(cfgFile); err == nil && cfg != nil && cfg.Defaults != nil {
+		if cfg, err := config.LoadDefaults(shared.CfgFile); err == nil && cfg != nil && cfg.Defaults != nil {
 			cfg.Defaults.Midjourney.MergeIntoImagine(req)
 		}
 
@@ -645,7 +645,7 @@ Example:
 			return fmt.Errorf("--image-url is required for edits")
 		}
 
-		if cfg, err := config.LoadDefaults(cfgFile); err == nil && cfg != nil && cfg.Defaults != nil {
+		if cfg, err := config.LoadDefaults(shared.CfgFile); err == nil && cfg != nil && cfg.Defaults != nil {
 			cfg.Defaults.Midjourney.MergeIntoImagine(req)
 		}
 

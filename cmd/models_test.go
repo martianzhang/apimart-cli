@@ -297,9 +297,9 @@ func TestOpenRouterModelsLocalServer(t *testing.T) {
 	defer srv.Close()
 
 	// Override apiBase and test the discovery function
-	origBase := apiBase
-	apiBase = srv.URL
-	defer func() { apiBase = origBase }()
+	origBase := shared.APIBase
+	shared.APIBase = srv.URL
+	defer func() { shared.APIBase = origBase }()
 
 	// Just verify no panic and clean output
 	err := runModelsOpenRouterDiscovery("image")

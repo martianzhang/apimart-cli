@@ -87,8 +87,8 @@ func TestSetMJBoolFlag_notChanged(t *testing.T) {
 // ============================================================================
 
 func TestBuildMJCurl_imagine(t *testing.T) {
-	apiKey = "test-key-123"
-	apiBase = "https://api.apimart.ai"
+	shared.APIKey = "test-key-123"
+	shared.APIBase = "https://api.apimart.ai"
 
 	req := &types.MJImagineRequest{
 		Prompt: "a cute cat",
@@ -114,8 +114,8 @@ func TestBuildMJCurl_imagine(t *testing.T) {
 }
 
 func TestBuildMJCurl_upscale(t *testing.T) {
-	apiKey = "test-key"
-	apiBase = "https://api.apimart.ai"
+	shared.APIKey = "test-key"
+	shared.APIBase = "https://api.apimart.ai"
 
 	idx := 1
 	req := &types.MJTaskActionRequest{
@@ -133,8 +133,8 @@ func TestBuildMJCurl_upscale(t *testing.T) {
 }
 
 func TestBuildMJCurl_blend(t *testing.T) {
-	apiKey = "test-key"
-	apiBase = "https://api.apimart.ai"
+	shared.APIKey = "test-key"
+	shared.APIBase = "https://api.apimart.ai"
 
 	req := &types.MJBlendRequest{
 		ImageURLs:  []string{"a.png", "b.png"},
@@ -151,8 +151,8 @@ func TestBuildMJCurl_blend(t *testing.T) {
 }
 
 func TestBuildMJCurl_customBaseURL(t *testing.T) {
-	apiKey = "test-key"
-	apiBase = "https://custom-relay.com/v1"
+	shared.APIKey = "test-key"
+	shared.APIBase = "https://custom-relay.com/v1"
 
 	req := &types.MJImagineRequest{Prompt: "test"}
 	curl := buildMJCurl("imagine", req)

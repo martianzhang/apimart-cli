@@ -76,7 +76,7 @@ func runImageGenerate(cmd *cobra.Command, args []string) error {
 	}
 
 	// ----- Step 2: Merge config defaults -----
-	if cfg, err := config.LoadDefaults(cfgFile); err == nil && cfg != nil && cfg.Defaults != nil {
+	if cfg, err := config.LoadDefaults(shared.CfgFile); err == nil && cfg != nil && cfg.Defaults != nil {
 		cfg.Defaults.Image.MergeIntoImage(req)
 	}
 
@@ -115,13 +115,13 @@ func runImageGenerate(cmd *cobra.Command, args []string) error {
 	}
 
 	// ----- Step 4: Print the request payload (verbose only) -----
-	if verbose {
+	if shared.Verbose {
 		prettyReq, _ := json.MarshalIndent(req, "", "  ")
 		fmt.Printf("Request:\n%s\n\n", string(prettyReq))
 	}
 
 	// ----- Step 5: Resolve local image files (upload if needed) -----
-	c := client.New(apiKey, apiBase, httpProxy)
+	c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 	applyTimeout(c, "image", client.ImageTimeout)
 
 	if isAPIMartProvider() {
@@ -142,17 +142,30 @@ func runImageGenerate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Strategy table: first match wins, last entry is the default.
+	ictx := &imageDispatchCtx{
+		isAPIMart:    isAPIMartProvider(),
+		isOpenRouter: isOpenRouterProvider(),
+		genEdit:      genEdit,
+	}
 	for _, s := range imageStrategies {
-		if s.match(req) {
+		if s.match(req, ictx) {
 			return s.run(c, req)
 		}
 	}
 	return nil
 }
 
+// imageDispatchCtx holds provider/mode context for image strategy matching.
+// Built from local variables in runImageGenerate, not global state.
+type imageDispatchCtx struct {
+	isAPIMart    bool
+	isOpenRouter bool
+	genEdit      bool
+}
+
 // imageStrategy defines a dispatch rule for image generation.
 type imageStrategy struct {
-	match func(*types.GenerateRequest) bool
+	match func(req *types.GenerateRequest, ctx *imageDispatchCtx) bool
 	run   func(client.APIClient, *types.GenerateRequest) error
 }
 
@@ -161,28 +174,28 @@ type imageStrategy struct {
 var imageStrategies = []imageStrategy{
 	{
 		// OpenRouter: chat-native image models (Gemini Flash Image, etc.) → Responses API
-		match: func(req *types.GenerateRequest) bool {
-			return isOpenRouterProvider() && !genEdit && usesOpenRouterResponsesAPI(req.Model)
+		match: func(req *types.GenerateRequest, ctx *imageDispatchCtx) bool {
+			return ctx.isOpenRouter && !ctx.genEdit && usesOpenRouterResponsesAPI(req.Model)
 		},
 		run: runOpenRouterImage,
 	},
 	{
 		// OpenRouter: dedicated image models (GPT Image, DALL-E, etc.) → Dedicated Image API
-		match: func(req *types.GenerateRequest) bool {
-			return isOpenRouterProvider() && !genEdit
+		match: func(req *types.GenerateRequest, ctx *imageDispatchCtx) bool {
+			return ctx.isOpenRouter && !ctx.genEdit
 		},
 		run: runOpenRouterDedicatedImage,
 	},
 	{
 		// APIMart: async task-based generation
-		match: func(req *types.GenerateRequest) bool {
-			return isAPIMartProvider()
+		match: func(req *types.GenerateRequest, ctx *imageDispatchCtx) bool {
+			return ctx.isAPIMart
 		},
 		run: runAsyncImage,
 	},
 	// Default: OpenAI-compatible synchronous generation
 	{
-		match: func(req *types.GenerateRequest) bool { return true },
+		match: func(req *types.GenerateRequest, ctx *imageDispatchCtx) bool { return true },
 		run:   runSyncImage,
 	},
 }
@@ -227,7 +240,7 @@ func runOpenRouterImage(c client.APIClient, req *types.GenerateRequest) error {
 
 	// Extract and save images from response
 	taskID := fmt.Sprintf("image_%d", time.Now().Unix())
-	saved, err := client.ExtractImagesFromResponse(orResp, outputDir, taskID)
+	saved, err := client.ExtractImagesFromResponse(orResp, shared.OutputDir, taskID)
 	if err != nil {
 		return fmt.Errorf("failed to extract images: %w", err)
 	}
@@ -272,7 +285,7 @@ func runOpenRouterDedicatedImage(c client.APIClient, req *types.GenerateRequest)
 			}
 			ext := ".png"
 			ts := time.Now().Unix()
-			filename := filepath.Join(outputDir, fmt.Sprintf("image_%d_%d%s", ts, i, ext))
+			filename := filepath.Join(shared.OutputDir, fmt.Sprintf("image_%d_%d%s", ts, i, ext))
 			if err := os.WriteFile(filename, raw, 0644); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: failed to save %s: %v\n", filename, err)
 				continue
@@ -290,7 +303,7 @@ func runOpenRouterDedicatedImage(c client.APIClient, req *types.GenerateRequest)
 				ext = ".png"
 			}
 			ts := time.Now().Unix()
-			filename := filepath.Join(outputDir, fmt.Sprintf("image_%d_%d%s", ts, i, ext))
+			filename := filepath.Join(shared.OutputDir, fmt.Sprintf("image_%d_%d%s", ts, i, ext))
 			if err := os.WriteFile(filename, body, 0644); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: failed to save %s: %v\n", filename, err)
 				continue
@@ -359,7 +372,7 @@ func runSyncImage(c client.APIClient, req *types.GenerateRequest) error {
 				ext = ".png"
 			}
 			taskID := fmt.Sprintf("sync_%d", syncResp.Created)
-			filename := filepath.Join(outputDir, fmt.Sprintf("image_%s_%d%s", taskID, i, ext))
+			filename := filepath.Join(shared.OutputDir, fmt.Sprintf("image_%s_%d%s", taskID, i, ext))
 			if err := os.WriteFile(filename, raw, 0644); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: failed to save %s: %v\n", filename, err)
 				continue
@@ -377,7 +390,7 @@ func runSyncImage(c client.APIClient, req *types.GenerateRequest) error {
 				ext = ".png"
 			}
 			taskID := fmt.Sprintf("sync_%d", syncResp.Created)
-			filename := filepath.Join(outputDir, fmt.Sprintf("image_%s_%d%s", taskID, i, ext))
+			filename := filepath.Join(shared.OutputDir, fmt.Sprintf("image_%s_%d%s", taskID, i, ext))
 			if err := os.WriteFile(filename, body, 0644); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: failed to save %s: %v\n", filename, err)
 				continue
@@ -447,7 +460,7 @@ func runAsyncImage(c client.APIClient, req *types.GenerateRequest) error {
 		return fmt.Errorf("polling failed: %w", err)
 	}
 
-	if verbose {
+	if shared.Verbose {
 		prettyResult, _ := json.MarshalIndent(taskData, "", "  ")
 		fmt.Printf("\nTask result:\n%s\n", string(prettyResult))
 	}
@@ -468,7 +481,7 @@ func runAsyncImage(c client.APIClient, req *types.GenerateRequest) error {
 
 // isOpenRouterProvider determines whether the current base URL points to OpenRouter.
 func isOpenRouterProvider() bool {
-	return provider.IsOpenRouter(apiBase)
+	return provider.IsOpenRouter(shared.APIBase)
 }
 
 // usesOpenRouterResponsesAPI returns true if the model should use OpenRouter's
@@ -489,13 +502,13 @@ func usesOpenRouterResponsesAPI(model string) bool {
 // Known sync domains: openai.com, openrouter.ai
 // All other domains default to sync (OpenAI-compatible relay).
 func isAPIMartProvider() bool {
-	switch mode {
+	switch shared.Mode {
 	case "async":
 		return true
 	case "sync":
 		return false
 	default: // auto — detect from base URL
-		base := apiBase
+		base := shared.APIBase
 		if base == "" {
 			base = "https://api.apimart.ai"
 		}
@@ -505,7 +518,7 @@ func isAPIMartProvider() bool {
 
 // buildImageRequest constructs a GenerateRequest from --json or individual flags.
 func buildImageRequest(cmd *cobra.Command) (*types.GenerateRequest, error) {
-	if jsonInput != "" {
+	if shared.JSONInput != "" {
 		return parseJSONInput()
 	}
 
@@ -515,7 +528,7 @@ func buildImageRequest(cmd *cobra.Command) (*types.GenerateRequest, error) {
 	}
 
 	req := &types.GenerateRequest{
-		Model:          model,
+		Model:          shared.Model,
 		Prompt:         prompt,
 		Size:           genSize,
 		Resolution:     genResolution,
@@ -548,7 +561,7 @@ func buildImageRequest(cmd *cobra.Command) (*types.GenerateRequest, error) {
 // buildImageCurl generates an equivalent curl command for an image generation request.
 func buildImageCurl(req *types.GenerateRequest) string {
 	body, _ := json.Marshal(req)
-	base := apiBase
+	base := shared.APIBase
 	if base == "" {
 		base = "https://api.apimart.ai/v1" // matches client.defaultBaseURL
 	}
@@ -556,7 +569,7 @@ func buildImageCurl(req *types.GenerateRequest) string {
 	url := base + "/images/generations"
 
 	cmd := fmt.Sprintf("curl -X POST %s \\\n", url)
-	cmd += fmt.Sprintf("  -H \"Authorization: Bearer %s\" \\\n", apiKey)
+	cmd += fmt.Sprintf("  -H \"Authorization: Bearer %s\" \\\n", shared.APIKey)
 	cmd += "  -H \"Content-Type: application/json\" \\\n"
 	cmd += fmt.Sprintf("  -d '%s'", string(body))
 	return cmd
@@ -580,9 +593,9 @@ func registerImageGenerateFlags(cmd *cobra.Command) {
 	f.StringVar(&genResponseFmt, "response-format", "", "Response format: url, b64_json (OpenAI/OpenRouter)")
 	f.BoolVar(&genDryRun, "dry-run", false, "Print request parameters without calling API")
 	f.BoolVar(&genEdit, "edit", false, "Grok Imagine 1.5 Edit mode (requires --image-url)")
-	f.StringVar(&jsonInput, "json", "", "JSON file path, JSON string, or \"-\" for stdin")
-	f.StringVar(&mode, "mode", "", "Generation mode: auto (detect), sync, async (default: auto)")
-	f.BoolVar(&savePrompt, "save-prompt", false, "save prompt to .md file alongside results")
+	f.StringVar(&shared.JSONInput, "json", "", "JSON file path, JSON string, or \"-\" for stdin")
+	f.StringVar(&shared.Mode, "mode", "", "Generation mode: auto (detect), sync, async (default: auto)")
+	f.BoolVar(&shared.SavePrompt, "save-prompt", false, "save prompt to .md file alongside results")
 }
 
 func init() {
@@ -623,7 +636,7 @@ func readInput(input string) ([]byte, error) {
 
 // parseJSONInput reads JSON from file path, string literal, or stdin.
 func parseJSONInput() (*types.GenerateRequest, error) {
-	data, err := readInput(jsonInput)
+	data, err := readInput(shared.JSONInput)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read JSON input: %w", err)
 	}
@@ -645,13 +658,13 @@ func parseJSONInput() (*types.GenerateRequest, error) {
 func applyTimeout(c client.APIClient, modKey string, modDefault time.Duration) {
 	d := modDefault
 	// 1. CLI --timeout flag (global override)
-	if timeoutFlag > 0 {
-		d = time.Duration(timeoutFlag) * time.Second
+	if shared.TimeoutFlag > 0 {
+		d = time.Duration(shared.TimeoutFlag) * time.Second
 		c.SetTimeout(d)
 		return
 	}
 	// 2. Config file
-	if cfg, err := config.LoadDefaults(cfgFile); err == nil && cfg != nil {
+	if cfg, err := config.LoadDefaults(shared.CfgFile); err == nil && cfg != nil {
 		var modTimeout *int
 		if cfg.Defaults != nil {
 			switch modKey {
@@ -701,7 +714,7 @@ func downloadImages(images []types.ImageResult, taskID string) error {
 			if ext == "" {
 				ext = ".png"
 			}
-			filename := filepath.Join(outputDir, fmt.Sprintf("image_%s_%d_%d%s", taskID, i, j, ext))
+			filename := filepath.Join(shared.OutputDir, fmt.Sprintf("image_%s_%d_%d%s", taskID, i, j, ext))
 			if err := os.WriteFile(filename, resp, 0644); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: failed to save %s: %v\n", filename, err)
 				continue
@@ -714,10 +727,10 @@ func downloadImages(images []types.ImageResult, taskID string) error {
 
 // savePromptFile saves the generation prompt to image_{taskID}.md.
 func savePromptFile(taskID, prompt string) {
-	if !savePrompt {
+	if !shared.SavePrompt {
 		return
 	}
-	service.SavePrompt(outputDir, taskID, prompt)
+	service.SavePrompt(shared.OutputDir, taskID, prompt)
 }
 
 // httpGet performs a simple GET request and returns the body bytes.

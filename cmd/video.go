@@ -49,7 +49,7 @@ type openRouterJobInfo struct {
 }
 
 func jobFilePath(jobID string) string {
-	return filepath.Join(outputDir, fmt.Sprintf("video_job_%s.json", jobID))
+	return filepath.Join(shared.OutputDir, fmt.Sprintf("video_job_%s.json", jobID))
 }
 
 func saveJobInfo(info *openRouterJobInfo) error {
@@ -114,7 +114,7 @@ func runVideo(cmd *cobra.Command, args []string) error {
 	}
 
 	// Merge config defaults
-	if cfg, err := config.LoadDefaults(cfgFile); err == nil && cfg != nil && cfg.Defaults != nil {
+	if cfg, err := config.LoadDefaults(shared.CfgFile); err == nil && cfg != nil && cfg.Defaults != nil {
 		cfg.Defaults.Video.MergeIntoVideo(req)
 	}
 
@@ -135,23 +135,34 @@ func runVideo(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if verbose {
+	if shared.Verbose {
 		prettyReq, _ := json.MarshalIndent(req, "", "  ")
 		fmt.Printf("Request:\n%s\n\n", string(prettyReq))
 	}
 
 	// Strategy table: first match wins, last entry is the default.
+	vctx := &videoDispatchCtx{
+		isOpenRouter: isOpenRouterProvider(),
+		isYunwu:      shared.APIBase != "" && provider.IsYunwu(shared.APIBase),
+	}
 	for _, s := range videoStrategies {
-		if s.match(req) {
+		if s.match(req, vctx) {
 			return s.run(req)
 		}
 	}
 	return nil
 }
 
+// videoDispatchCtx holds provider context for video strategy matching.
+// Built from local variables in runVideo, not global state.
+type videoDispatchCtx struct {
+	isOpenRouter bool
+	isYunwu      bool
+}
+
 // videoStrategy defines a dispatch rule for video generation.
 type videoStrategy struct {
-	match func(*types.VideoGenerateRequest) bool
+	match func(req *types.VideoGenerateRequest, ctx *videoDispatchCtx) bool
 	run   func(*types.VideoGenerateRequest) error
 }
 
@@ -160,21 +171,21 @@ type videoStrategy struct {
 var videoStrategies = []videoStrategy{
 	{
 		// OpenRouter: dedicated video API (submit → poll → download)
-		match: func(req *types.VideoGenerateRequest) bool {
-			return isOpenRouterProvider()
+		match: func(req *types.VideoGenerateRequest, ctx *videoDispatchCtx) bool {
+			return ctx.isOpenRouter
 		},
 		run: runOpenRouterVideo,
 	},
 	{
 		// Yunwu (云雾AI): unified video API (submit → poll → download)
-		match: func(req *types.VideoGenerateRequest) bool {
-			return apiBase != "" && provider.IsYunwu(apiBase)
+		match: func(req *types.VideoGenerateRequest, ctx *videoDispatchCtx) bool {
+			return ctx.isYunwu
 		},
 		run: runYunwuVideo,
 	},
 	{
 		// Default: APIMart async task-based generation
-		match: func(req *types.VideoGenerateRequest) bool { return true },
+		match: func(req *types.VideoGenerateRequest, ctx *videoDispatchCtx) bool { return true },
 		run:   runAPIMartVideo,
 	},
 }
@@ -183,7 +194,7 @@ var videoStrategies = []videoStrategy{
 func runAPIMartVideo(req *types.VideoGenerateRequest) error {
 	// Resolve local image files in image_urls
 	if len(req.ImageURLs) > 0 {
-		c := client.New(apiKey, apiBase, httpProxy)
+		c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 		resolved, err := c.ResolveLocalImages(req.ImageURLs)
 		if err != nil {
 			return fmt.Errorf("failed to resolve image-urls: %w", err)
@@ -192,7 +203,7 @@ func runAPIMartVideo(req *types.VideoGenerateRequest) error {
 	}
 	// Resolve local image files in image_with_roles
 	for i := range req.ImageWithRoles {
-		c := client.New(apiKey, apiBase, httpProxy)
+		c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 		resolved, err := c.ResolveLocalImages([]string{req.ImageWithRoles[i].URL})
 		if err != nil {
 			return fmt.Errorf("failed to resolve image-with-role: %w", err)
@@ -200,7 +211,7 @@ func runAPIMartVideo(req *types.VideoGenerateRequest) error {
 		req.ImageWithRoles[i].URL = resolved[0]
 	}
 
-	c := client.New(apiKey, apiBase, httpProxy)
+	c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 	applyTimeout(c, "video", client.VideoTimeout)
 	resp, err := c.VideoSubmit(req)
 	if err != nil {
@@ -222,7 +233,7 @@ func runAPIMartVideo(req *types.VideoGenerateRequest) error {
 		return fmt.Errorf("polling failed: %w", err)
 	}
 
-	if verbose {
+	if shared.Verbose {
 		prettyResult, _ := json.MarshalIndent(taskData, "", "  ")
 		fmt.Printf("\nTask result:\n%s\n", string(prettyResult))
 	}
@@ -245,7 +256,7 @@ func runAPIMartVideo(req *types.VideoGenerateRequest) error {
 func runYunwuVideo(req *types.VideoGenerateRequest) error {
 	// Resolve local images before submission
 	if len(req.ImageURLs) > 0 {
-		c := client.New(apiKey, apiBase, httpProxy)
+		c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 		resolved, err := c.ResolveLocalImages(req.ImageURLs)
 		if err != nil {
 			return fmt.Errorf("failed to resolve image-urls: %w", err)
@@ -253,7 +264,7 @@ func runYunwuVideo(req *types.VideoGenerateRequest) error {
 		req.ImageURLs = resolved
 	}
 	for i := range req.ImageWithRoles {
-		c := client.New(apiKey, apiBase, httpProxy)
+		c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 		resolved, err := c.ResolveLocalImages([]string{req.ImageWithRoles[i].URL})
 		if err != nil {
 			return fmt.Errorf("failed to resolve image-with-role: %w", err)
@@ -261,7 +272,7 @@ func runYunwuVideo(req *types.VideoGenerateRequest) error {
 		req.ImageWithRoles[i].URL = resolved[0]
 	}
 
-	c := client.New(apiKey, apiBase, httpProxy)
+	c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 	applyTimeout(c, "video", client.VideoTimeout)
 
 	// Step 1: Submit
@@ -318,7 +329,7 @@ func runYunwuVideo(req *types.VideoGenerateRequest) error {
 	// Step 3: Download
 	fmt.Println()
 	ext := extractExt(videoURL)
-	filename := filepath.Join(outputDir, fmt.Sprintf("video_yunwu_%s_%d%s", taskID, time.Now().Unix(), ext))
+	filename := filepath.Join(shared.OutputDir, fmt.Sprintf("video_yunwu_%s_%d%s", taskID, time.Now().Unix(), ext))
 	fmt.Printf("Downloading video...\n")
 	body, err := httpGet(videoURL)
 	if err != nil {
@@ -346,7 +357,7 @@ func runVideoRemix(cmd *cobra.Command) error {
 		return err
 	}
 	req := &types.VideoRemixRequest{
-		Model:      model,
+		Model:      shared.Model,
 		Prompt:     prompt,
 		Resolution: vidResolution,
 	}
@@ -371,12 +382,12 @@ func runVideoRemix(cmd *cobra.Command) error {
 		return nil
 	}
 
-	if verbose {
+	if shared.Verbose {
 		prettyReq, _ := json.MarshalIndent(req, "", "  ")
 		fmt.Printf("Request:\n%s\n\n", string(prettyReq))
 	}
 
-	c := client.New(apiKey, apiBase, httpProxy)
+	c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 	applyTimeout(c, "video", client.VideoTimeout)
 	resp, err := c.VideoRemixSubmit(vidTaskID, req)
 	if err != nil {
@@ -397,7 +408,7 @@ func runVideoRemix(cmd *cobra.Command) error {
 		return fmt.Errorf("polling failed: %w", err)
 	}
 
-	if verbose {
+	if shared.Verbose {
 		prettyResult, _ := json.MarshalIndent(taskData, "", "  ")
 		fmt.Printf("\nTask result:\n%s\n", string(prettyResult))
 	}
@@ -432,8 +443,8 @@ func resolveVideoPrompt() (string, error) {
 }
 
 func buildVideoRequest(cmd *cobra.Command) (*types.VideoGenerateRequest, error) {
-	if jsonInput != "" {
-		data, err := readInput(jsonInput)
+	if shared.JSONInput != "" {
+		data, err := readInput(shared.JSONInput)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read JSON input: %w", err)
 		}
@@ -450,7 +461,7 @@ func buildVideoRequest(cmd *cobra.Command) (*types.VideoGenerateRequest, error) 
 	}
 
 	req := &types.VideoGenerateRequest{
-		Model:      model,
+		Model:      shared.Model,
 		Prompt:     prompt,
 		Size:       vidSize,
 		Resolution: vidResolution,
@@ -502,7 +513,7 @@ func setBoolFlag(cmd *cobra.Command, name string, target **bool, val bool) {
 
 func buildVideoCurl(req *types.VideoGenerateRequest) string {
 	body, _ := json.Marshal(req)
-	base := apiBase
+	base := shared.APIBase
 	if base == "" {
 		base = "https://api.apimart.ai/v1" // matches client.defaultBaseURL
 	}
@@ -510,7 +521,7 @@ func buildVideoCurl(req *types.VideoGenerateRequest) string {
 	url := base + "/videos/generations"
 
 	cmd := fmt.Sprintf("curl -X POST %s \\\n", url)
-	cmd += fmt.Sprintf("  -H \"Authorization: Bearer %s\" \\\n", apiKey)
+	cmd += fmt.Sprintf("  -H \"Authorization: Bearer %s\" \\\n", shared.APIKey)
 	cmd += "  -H \"Content-Type: application/json\" \\\n"
 	cmd += fmt.Sprintf("  -d '%s'", string(body))
 	return cmd
@@ -518,7 +529,7 @@ func buildVideoCurl(req *types.VideoGenerateRequest) string {
 
 func buildVideoRemixCurl(req *types.VideoRemixRequest) string {
 	body, _ := json.Marshal(req)
-	base := apiBase
+	base := shared.APIBase
 	if base == "" {
 		base = "https://api.apimart.ai/v1"
 	}
@@ -526,7 +537,7 @@ func buildVideoRemixCurl(req *types.VideoRemixRequest) string {
 	url := fmt.Sprintf("%s/videos/%s/remix", base, vidTaskID)
 
 	cmd := fmt.Sprintf("curl -X POST %s \\\n", url)
-	cmd += fmt.Sprintf("  -H \"Authorization: Bearer %s\" \\\n", apiKey)
+	cmd += fmt.Sprintf("  -H \"Authorization: Bearer %s\" \\\n", shared.APIKey)
 	cmd += "  -H \"Content-Type: application/json\" \\\n"
 	cmd += fmt.Sprintf("  -d '%s'", string(body))
 	return cmd
@@ -542,7 +553,7 @@ func downloadVideos(videos []types.VideoResult, taskID string) error {
 				continue
 			}
 			ext := extractExt(url)
-			filename := filepath.Join(outputDir, fmt.Sprintf("video_%s_%d_%d%s", taskID, i, j, ext))
+			filename := filepath.Join(shared.OutputDir, fmt.Sprintf("video_%s_%d_%d%s", taskID, i, j, ext))
 			if err := os.WriteFile(filename, resp, 0644); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: failed to save %s: %v\n", filename, err)
 				continue
@@ -597,12 +608,12 @@ func runOpenRouterVideo(req *types.VideoGenerateRequest) error {
 		orReq.FrameImages = append(orReq.FrameImages, frame)
 	}
 
-	if verbose {
+	if shared.Verbose {
 		prettyReq, _ := json.MarshalIndent(orReq, "", "  ")
 		fmt.Printf("OpenRouter Video Request:\n%s\n\n", string(prettyReq))
 	}
 
-	c := client.New(apiKey, apiBase, httpProxy)
+	c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 	applyTimeout(c, "video", client.VideoTimeout)
 
 	// Step 1: Submit
@@ -641,7 +652,7 @@ func runOpenRouterVideo(req *types.VideoGenerateRequest) error {
 	elapsed := time.Since(pollStart).Seconds()
 	fmt.Printf("Completed in %.0fs\n\n", elapsed)
 
-	if verbose {
+	if shared.Verbose {
 		prettyResult, _ := json.MarshalIndent(pollResp, "", "  ")
 		fmt.Printf("Video result:\n%s\n\n", string(prettyResult))
 	}
@@ -654,7 +665,7 @@ func runOpenRouterVideo(req *types.VideoGenerateRequest) error {
 	for i, u := range pollResp.UnsignedURLs {
 		ext := extractExt(u)
 		ts := time.Now().Unix()
-		filename := filepath.Join(outputDir, fmt.Sprintf("video_%s_%d_%d%s", submitResp.ID, i, ts, ext))
+		filename := filepath.Join(shared.OutputDir, fmt.Sprintf("video_%s_%d_%d%s", submitResp.ID, i, ts, ext))
 		fmt.Printf("Downloading video %d/%d...\n", i+1, len(pollResp.UnsignedURLs))
 		if err := c.OpenRouterVideoDownload(u, filename); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to download video %d: %v\n", i, err)
@@ -686,7 +697,7 @@ func runOpenRouterVideoResume(jobID string) error {
 	fmt.Printf("Model: %s | Created: %s\n", info.Model, time.Unix(info.CreatedAt, 0).Format("2006-01-02 15:04:05"))
 	fmt.Printf("Prompt: %s\n\n", info.Prompt)
 
-	c := client.New(apiKey, apiBase, httpProxy)
+	c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 	applyTimeout(c, "video", client.VideoTimeout)
 
 	// Check current status
@@ -722,7 +733,7 @@ func runOpenRouterVideoResume(jobID string) error {
 	for i, u := range statusResp.UnsignedURLs {
 		ext := extractExt(u)
 		ts := time.Now().Unix()
-		filename := filepath.Join(outputDir, fmt.Sprintf("video_%s_%d_%d%s", info.JobID, i, ts, ext))
+		filename := filepath.Join(shared.OutputDir, fmt.Sprintf("video_%s_%d_%d%s", info.JobID, i, ts, ext))
 		fmt.Printf("Downloading video %d/%d...\n", i+1, len(statusResp.UnsignedURLs))
 		if err := c.OpenRouterVideoDownload(u, filename); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to download video %d: %v\n", i, err)
@@ -761,7 +772,7 @@ func init() {
 	f.BoolVar(&vidRaw, "raw", false, "Remix: return only the extended portion (VEO3 remix only)")
 	f.StringVar(&vidTaskID, "task-id", "", "Original video task ID for remix (required with --remix)")
 	f.BoolVar(&vidDryRun, "dry-run", false, "Print request parameters without calling API")
-	f.StringVar(&jsonInput, "json", "", "JSON file path, JSON string, or \"-\" for stdin")
+	f.StringVar(&shared.JSONInput, "json", "", "JSON file path, JSON string, or \"-\" for stdin")
 	f.StringVar(&vidJobID, "job-id", "", "Resume an OpenRouter video job by ID (loads saved job info and downloads the result)")
 
 	rootCmd.AddCommand(videoCmd)

@@ -24,13 +24,13 @@ Example:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		taskID := args[0]
 
-		c := client.New(apiKey, apiBase, httpProxy)
+		c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 		task, err := c.GetTask(taskID)
 		if err != nil {
 			return fmt.Errorf("failed to query task: %w", err)
 		}
 
-		if verbose {
+		if shared.Verbose {
 			pretty, _ := json.MarshalIndent(task, "", "  ")
 			fmt.Println(string(pretty))
 		}

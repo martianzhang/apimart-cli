@@ -16,20 +16,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var (
-	cfgFile     string
-	apiKey      string
-	apiBase     string
-	httpProxy   string
-	model       string // global --model, each subcommand handles its own default
-	jsonInput   string
-	outputDir   string
-	verbose     bool
-	savePrompt  bool
-	mode        string
-	printConfig bool
-	timeoutFlag int // global --timeout in seconds; 0 means "not set"
-)
+// shared holds all shared configuration values, initialized in PersistentPreRunE.
+// Replaces the previous 12 individual global variables.
+var shared = &SharedConfig{}
 
 // rootCmd represents the base command.
 var rootCmd = &cobra.Command{
@@ -48,33 +37,33 @@ OpenAI-compatible third-party relay. Backward-compatible with APIMart.`,
 	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// --print-config: dump effective config with diagnostics
-		if printConfig {
+		if shared.PrintConfig {
 			runPrintConfig(cmd)
 			os.Exit(0)
 		}
 
 		// Load config (optional) to resolve defaults not set via flags
-		if cfg, err := config.Load(cfgFile); err == nil {
-			if apiKey == "" {
-				apiKey = cfg.APIKey
+		if cfg, err := config.Load(shared.CfgFile); err == nil {
+			if shared.APIKey == "" {
+				shared.APIKey = cfg.APIKey
 			}
-			if apiBase == "" {
-				apiBase = cfg.BaseURL
+			if shared.APIBase == "" {
+				shared.APIBase = cfg.BaseURL
 			}
-			if httpProxy == "" {
-				httpProxy = cfg.HTTPProxy
+			if shared.HTTPProxy == "" {
+				shared.HTTPProxy = cfg.HTTPProxy
 			}
 			if !cmd.Flags().Changed("verbose") {
-				verbose = cfg.Verbose
+				shared.Verbose = cfg.Verbose
 			}
 			if !cmd.Flags().Changed("output") && cfg.OutputDir != "" {
-				outputDir = cfg.OutputDir
+				shared.OutputDir = cfg.OutputDir
 			}
 			if !cmd.Flags().Changed("timeout") && cfg.Timeout != nil && *cfg.Timeout > 0 {
-				timeoutFlag = *cfg.Timeout
+				shared.TimeoutFlag = *cfg.Timeout
 			}
 		}
-		if apiKey == "" {
+		if shared.APIKey == "" {
 			return fmt.Errorf("API key is required: set it via --api-key flag, OPENAI_API_KEY env, or config.yaml")
 		}
 		return nil
@@ -83,7 +72,7 @@ OpenAI-compatible third-party relay. Backward-compatible with APIMart.`,
 
 // runPrintConfig prints the effective configuration with inline annotations.
 func runPrintConfig(cmd *cobra.Command) {
-	cfg, cfgErr := config.Load(cfgFile)
+	cfg, cfgErr := config.Load(shared.CfgFile)
 	configFound := cfgErr == nil
 
 	displayCfg := &configDisplay{}
@@ -92,15 +81,15 @@ func runPrintConfig(cmd *cobra.Command) {
 	}
 	// env var / CLI flag takes priority over config file
 	effectiveKey := displayCfg.APIKey
-	if apiKey != "" {
-		effectiveKey = apiKey
-		displayCfg.APIKey = apiKey
+	if shared.APIKey != "" {
+		effectiveKey = shared.APIKey
+		displayCfg.APIKey = shared.APIKey
 	}
-	if apiBase != "" && displayCfg.BaseURL == "" {
-		displayCfg.BaseURL = apiBase
+	if shared.APIBase != "" && displayCfg.BaseURL == "" {
+		displayCfg.BaseURL = shared.APIBase
 	}
-	if httpProxy != "" && displayCfg.HTTPProxy == "" {
-		displayCfg.HTTPProxy = httpProxy
+	if shared.HTTPProxy != "" && displayCfg.HTTPProxy == "" {
+		displayCfg.HTTPProxy = shared.HTTPProxy
 	}
 	// Mask API key for display
 	if displayCfg.APIKey != "" {
@@ -120,8 +109,8 @@ func runPrintConfig(cmd *cobra.Command) {
 	var configNote, baseURLNote, apiKeyNote, proxyNote string
 
 	// Config file path
-	if cfgFile != "" {
-		configNote = fmt.Sprintf("# config: %s (explicit)", cfgFile)
+	if shared.CfgFile != "" {
+		configNote = fmt.Sprintf("# config: %s (explicit)", shared.CfgFile)
 	} else if configFound {
 		if cfg != nil {
 			home, _ := os.UserHomeDir()
@@ -407,13 +396,13 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "path to config file (default ~/.config/openai/config.yaml or ~/.config/apimart/config.yaml)")
-	rootCmd.PersistentFlags().StringVar(&apiKey, "api-key", "", "API key (env: OPENAI_API_KEY or APIMART_API_KEY)")
-	rootCmd.PersistentFlags().StringVar(&apiBase, "api-base", "", "API base URL (env: OPENAI_BASE_URL or APIMART_API_BASE)")
-	rootCmd.PersistentFlags().StringVar(&httpProxy, "http-proxy", "", "HTTP proxy URL (env: OPENAI_HTTP_PROXY or APIMART_HTTP_PROXY)")
-	rootCmd.PersistentFlags().StringVarP(&model, "model", "m", "", "Model name (optional; subcommand applies its own default when omitted)")
-	rootCmd.PersistentFlags().StringVar(&outputDir, "output", ".", "output directory for downloaded images")
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output: show full result JSON")
-	rootCmd.PersistentFlags().IntVar(&timeoutFlag, "timeout", 0, "HTTP request timeout in seconds (overrides config)")
-	rootCmd.PersistentFlags().BoolVar(&printConfig, "print-config", false, "show effective configuration and exit")
+	rootCmd.PersistentFlags().StringVar(&shared.CfgFile, "config", "", "path to config file (default ~/.config/openai/config.yaml or ~/.config/apimart/config.yaml)")
+	rootCmd.PersistentFlags().StringVar(&shared.APIKey, "api-key", "", "API key (env: OPENAI_API_KEY or APIMART_API_KEY)")
+	rootCmd.PersistentFlags().StringVar(&shared.APIBase, "api-base", "", "API base URL (env: OPENAI_BASE_URL or APIMART_API_BASE)")
+	rootCmd.PersistentFlags().StringVar(&shared.HTTPProxy, "http-proxy", "", "HTTP proxy URL (env: OPENAI_HTTP_PROXY or APIMART_HTTP_PROXY)")
+	rootCmd.PersistentFlags().StringVarP(&shared.Model, "model", "m", "", "Model name (optional; subcommand applies its own default when omitted)")
+	rootCmd.PersistentFlags().StringVar(&shared.OutputDir, "output", ".", "output directory for downloaded images")
+	rootCmd.PersistentFlags().BoolVarP(&shared.Verbose, "verbose", "v", false, "verbose output: show full result JSON")
+	rootCmd.PersistentFlags().IntVar(&shared.TimeoutFlag, "timeout", 0, "HTTP request timeout in seconds (overrides config)")
+	rootCmd.PersistentFlags().BoolVar(&shared.PrintConfig, "print-config", false, "show effective configuration and exit")
 }

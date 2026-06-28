@@ -144,7 +144,11 @@ func (c *Client) ChatCompletion(req *types.ChatRequest) (*types.ChatResponse, er
 
 	// Streaming (SSE)
 	if req.Stream {
-		return handleSSE(resp)
+		w := req.OutputWriter
+		if w == nil {
+			w = os.Stdout // backward compatibility: default to stdout
+		}
+		return handleSSE(resp, w)
 	}
 
 	// Non-streaming
@@ -161,8 +165,8 @@ func (c *Client) ChatCompletion(req *types.ChatRequest) (*types.ChatResponse, er
 	return &result, nil
 }
 
-// handleSSE parses SSE stream and prints tokens progressively.
-func handleSSE(resp *http.Response) (*types.ChatResponse, error) {
+// handleSSE parses SSE stream and writes tokens progressively to w.
+func handleSSE(resp *http.Response, w io.Writer) (*types.ChatResponse, error) {
 	defer resp.Body.Close()
 	scanner := bufio.NewScanner(resp.Body)
 	// Increase buffer for long lines
@@ -198,7 +202,7 @@ func handleSSE(resp *http.Response) (*types.ChatResponse, error) {
 			if !roleSkipped && choice.Delta.Role != "" {
 				roleSkipped = true
 				full.Choices[0].Message.Role = choice.Delta.Role
-				// If this chunk also has content, fall through to print it
+				// If this chunk also has content, fall through to write it
 				if choice.Delta.Content == "" {
 					continue
 				}
@@ -206,8 +210,11 @@ func handleSSE(resp *http.Response) (*types.ChatResponse, error) {
 
 			content := choice.Delta.Content
 			if content != "" {
-				fmt.Print(content)
-				os.Stdout.Sync()
+				fmt.Fprint(w, content)
+				// Sync the writer if it supports it (e.g., os.Stdout)
+				if s, ok := w.(interface{ Sync() error }); ok {
+					s.Sync()
+				}
 				full.Choices[0].Message.Content += content
 			}
 
@@ -228,7 +235,7 @@ func handleSSE(resp *http.Response) (*types.ChatResponse, error) {
 		return nil, fmt.Errorf("SSE read error: %w", err)
 	}
 
-	fmt.Println() // trailing newline after streaming output
+	fmt.Fprintln(w) // trailing newline after streaming output
 	return full, nil
 }
 

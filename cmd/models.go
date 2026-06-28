@@ -91,7 +91,7 @@ func runModels(cmd *cobra.Command, args []string) error {
 // runModelsMarketplace fetches models from the APIMart marketplace API.
 // The marketplace is a public API (no auth required).
 func runModelsMarketplace(mediaType string) error {
-	base := apiBase
+	base := shared.APIBase
 	if base == "" {
 		base = "https://api.apimart.ai"
 	}
@@ -197,7 +197,7 @@ func runModelsMarketplace(mediaType string) error {
 // runModelsOpenRouterDiscovery fetches models from OpenRouter's model discovery endpoints.
 // image → GET /api/v1/images/models, video → GET /api/v1/videos/models
 func runModelsOpenRouterDiscovery(mediaType string) error {
-	base := apiBase
+	base := shared.APIBase
 	if base == "" {
 		return fmt.Errorf("OpenRouter base URL is not configured")
 	}
@@ -304,7 +304,7 @@ var cmdPriceChanged bool
 
 // runModelsOpenAI fetches and displays models from OpenAI-compatible /v1/models.
 func runModelsOpenAI() error {
-	c := client.New(apiKey, apiBase, httpProxy)
+	c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 	models, err := c.ListModelsOpenAI()
 	if err != nil {
 		return fmt.Errorf("failed to list models: %w", err)
@@ -330,7 +330,7 @@ func runModelsOpenAI() error {
 
 // runModelsDetail fetches and displays a single model via /v1/models/{model}.
 func runModelsDetail(modelID string) error {
-	c := client.New(apiKey, apiBase, httpProxy)
+	c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 	model, err := c.GetModelOpenAI(modelID)
 	if err != nil {
 		return fmt.Errorf("failed to get model: %w", err)
@@ -373,7 +373,7 @@ func formatPrice(m types.MarketplaceModel) string {
 
 // runModelsPricing fetches and displays detailed pricing for a single model.
 func runModelsPricing(modelName string) error {
-	base := mainDomain(apiBase)
+	base := mainDomain(shared.APIBase)
 	url := base + "/api/pricing/model?model=" + modelName
 
 	c := httpProxyClient()
@@ -469,7 +469,7 @@ func mainDomain(baseURL string) string {
 // httpProxyClient returns an HTTP client that respects the configured proxy.
 func httpProxyClient() *http.Client {
 	transport := &http.Transport{}
-	proxyURL := httpProxy
+	proxyURL := shared.HTTPProxy
 	if proxyURL == "" {
 		proxyURL = os.Getenv("APIMART_HTTP_PROXY")
 	}

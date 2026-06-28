@@ -29,13 +29,13 @@ Example MCP host config:
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Load config (optional) to get defaults
-		cfg, _ := config.Load(cfgFile)
+		cfg, _ := config.Load(shared.CfgFile)
 
 		mcpCfg := &mcp.Config{
-			APIKey:  apiKey,
-			BaseURL: apiBase,
-			Proxy:   httpProxy,
-			Output:  outputDir,
+			APIKey:  shared.APIKey,
+			BaseURL: shared.APIBase,
+			Proxy:   shared.HTTPProxy,
+			Output:  shared.OutputDir,
 		}
 
 		// Copy defaults from config if present
@@ -60,19 +60,19 @@ func init() {
 	// Override PersistentPreRunE to skip the api key check for mcp command.
 	// Some MCP tools (list_models, get_model_pricing) work without API key.
 	mcpCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		// Load config to populate apiKey, apiBase, httpProxy, outputDir if not set via flags
-		if c, err := config.Load(cfgFile); err == nil {
-			if apiKey == "" {
-				apiKey = c.APIKey
+		// Load config to populate shared fields if not set via flags
+		if c, err := config.Load(shared.CfgFile); err == nil {
+			if shared.APIKey == "" {
+				shared.APIKey = c.APIKey
 			}
-			if apiBase == "" {
-				apiBase = c.BaseURL
+			if shared.APIBase == "" {
+				shared.APIBase = c.BaseURL
 			}
-			if httpProxy == "" {
-				httpProxy = c.HTTPProxy
+			if shared.HTTPProxy == "" {
+				shared.HTTPProxy = c.HTTPProxy
 			}
 			if !cmd.Flags().Changed("output") && c.OutputDir != "" {
-				outputDir = c.OutputDir
+				shared.OutputDir = c.OutputDir
 			}
 		}
 		// Don't error on missing API key - tools will handle it gracefully

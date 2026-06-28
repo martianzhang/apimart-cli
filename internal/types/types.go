@@ -3,6 +3,7 @@ package types
 
 import (
 	"encoding/json"
+	"io"
 	"strconv"
 )
 
@@ -250,6 +251,10 @@ type ChatRequest struct {
 	PresencePenalty  *float64      `json:"presence_penalty,omitempty"`
 	Stop             []string      `json:"stop,omitempty"`
 	N                *int          `json:"n,omitempty"`
+	// OutputWriter directs streaming output. When nil, streamed tokens are
+	// accumulated silently and returned in the full response (no terminal output).
+	// CLI sets this to os.Stdout; MCP and other callers leave it nil.
+	OutputWriter io.Writer `json:"-" yaml:"-"`
 }
 
 // ChatResponse is the non-streaming response from chat completion.

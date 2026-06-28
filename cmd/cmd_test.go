@@ -158,8 +158,8 @@ func TestSetFloatFlag_notChanged(t *testing.T) {
 }
 
 func TestBuildImageCurl(t *testing.T) {
-	apiKey = "test-key"
-	apiBase = "https://api.apimart.ai"
+	shared.APIKey = "test-key"
+	shared.APIBase = "https://api.apimart.ai"
 	req := &types.GenerateRequest{
 		Model:  "gpt-image-2-official",
 		Prompt: "test",
@@ -177,8 +177,8 @@ func TestBuildImageCurl(t *testing.T) {
 }
 
 func TestBuildVideoCurl(t *testing.T) {
-	apiKey = "test-key"
-	apiBase = "https://api.apimart.ai"
+	shared.APIKey = "test-key"
+	shared.APIBase = "https://api.apimart.ai"
 	req := &types.VideoGenerateRequest{
 		Model:  "doubao-seedance-2.0",
 		Prompt: "test video",

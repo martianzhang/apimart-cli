@@ -91,14 +91,15 @@ func sendChatRequest(cmd *cobra.Command, req *types.ChatRequest) error {
 	}
 
 	// Merge config defaults
-	if cfg, err := config.LoadDefaults(cfgFile); err == nil && cfg != nil && cfg.Defaults != nil && cfg.Defaults.Chat != nil {
+	if cfg, err := config.LoadDefaults(shared.CfgFile); err == nil && cfg != nil && cfg.Defaults != nil && cfg.Defaults.Chat != nil {
 		d := cfg.Defaults.Chat
 		if d.Model != "" {
 			req.Model = d.Model
 		}
 	}
 
-	c := client.New(apiKey, apiBase, httpProxy)
+	c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
+	req.OutputWriter = os.Stdout
 
 	start := time.Now()
 	result, err := c.ChatCompletion(req)
@@ -107,13 +108,13 @@ func sendChatRequest(cmd *cobra.Command, req *types.ChatRequest) error {
 	}
 	elapsed := time.Since(start)
 
-	// Non-streaming: print result (streaming already printed by handleSSE)
+	// Non-streaming: print result (streaming already written to OutputWriter)
 	if !req.Stream && result != nil && len(result.Choices) > 0 {
 		fmt.Println(result.Choices[0].Message.Content)
 	}
 
 	// Usage stats (to stderr, only with --verbose)
-	if verbose {
+	if shared.Verbose {
 		printUsageStats(result, elapsed)
 	}
 
@@ -189,9 +190,9 @@ func readLineStdin() (string, error) {
 // Conversation history accumulates across turns. Streaming is enabled by default.
 func runInteractiveChat(cmd *cobra.Command) error {
 	// Determine model (empty = use API default)
-	if cfg, err := config.LoadDefaults(cfgFile); err == nil && cfg != nil && cfg.Defaults != nil && cfg.Defaults.Chat != nil {
-		if model == "" && cfg.Defaults.Chat.Model != "" {
-			model = cfg.Defaults.Chat.Model
+	if cfg, err := config.LoadDefaults(shared.CfgFile); err == nil && cfg != nil && cfg.Defaults != nil && cfg.Defaults.Chat != nil {
+		if shared.Model == "" && cfg.Defaults.Chat.Model != "" {
+			shared.Model = cfg.Defaults.Chat.Model
 		}
 	}
 
@@ -201,7 +202,7 @@ func runInteractiveChat(cmd *cobra.Command) error {
 		history = append(history, types.ChatMessage{Role: "system", Content: chatSystem})
 	}
 
-	c := client.New(apiKey, apiBase, httpProxy)
+	c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 	stream := !chatNoStream
 
 	// Signal handling (Ctrl+C)
@@ -273,7 +274,7 @@ func runInteractiveChat(cmd *cobra.Command) error {
 					"  Ctrl+D            Exit\r\n"+
 					"  /clear, /reset    Clear conversation history\r\n"+
 					"  /help             Show this help\r\n")
-			modelDisplay := model
+			modelDisplay := shared.Model
 			if modelDisplay == "" {
 				modelDisplay = "<API default>"
 			}
@@ -290,12 +291,13 @@ func runInteractiveChat(cmd *cobra.Command) error {
 
 		// Build request
 		req := &types.ChatRequest{
-			Model:    model,
+			Model:    shared.Model,
 			Messages: history,
 			Stream:   stream,
 		}
 		setFloatFlag(cmd, "temperature", &req.Temperature, chatTemperature)
 		setIntFlag(cmd, "max-tokens", &req.MaxTokens, chatMaxTokens)
+		req.OutputWriter = os.Stdout
 
 		// Send
 		start := time.Now()
@@ -313,13 +315,13 @@ func runInteractiveChat(cmd *cobra.Command) error {
 			history = append(history, result.Choices[0].Message)
 		}
 
-		// Non-streaming: print result (streaming already printed by handleSSE)
+		// Non-streaming: print result (streaming already written to OutputWriter)
 		if !stream && result != nil && len(result.Choices) > 0 {
 			fmt.Println(result.Choices[0].Message.Content)
 		}
 
 		// Verbose stats
-		if verbose {
+		if shared.Verbose {
 			printUsageStats(result, elapsed)
 		}
 		fmt.Fprint(os.Stderr, "\r\n")
@@ -367,7 +369,7 @@ func buildChatRequest(cmd *cobra.Command) (*types.ChatRequest, error) {
 	}
 
 	req := &types.ChatRequest{
-		Model:    model,
+		Model:    shared.Model,
 		Messages: messages,
 		Stream:   !chatNoStream,
 	}

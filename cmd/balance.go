@@ -40,7 +40,7 @@ var balanceUserCmd = &cobra.Command{
 }
 
 func runBalanceToken() error {
-	c := client.New(apiKey, apiBase, httpProxy)
+	c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 	bal, err := c.GetTokenBalance()
 	if err != nil {
 		return fmt.Errorf("failed to query token balance: %w", err)
@@ -63,7 +63,7 @@ func runBalanceToken() error {
 }
 
 func runBalanceUser() error {
-	c := client.New(apiKey, apiBase, httpProxy)
+	c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 	bal, err := c.GetUserBalance()
 	if err != nil {
 		return fmt.Errorf("failed to query user balance: %w", err)
