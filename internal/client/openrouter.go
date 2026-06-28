@@ -243,7 +243,7 @@ func (c *Client) OpenRouterVideoPollUntilComplete(pollingURL string, pollInterva
 	start := time.Now()
 	for {
 		if time.Since(start) > maxWait {
-			return nil, fmt.Errorf("video polling timed out after %v", maxWait)
+			return nil, fmt.Errorf("video polling timed out after %v\n  The job may still be running. Use: apimart-cli video --job-id %s", maxWait, extractJobID(pollingURL))
 		}
 
 		resp, err := c.OpenRouterVideoPoll(pollingURL)
@@ -265,6 +265,17 @@ func (c *Client) OpenRouterVideoPollUntilComplete(pollingURL string, pollInterva
 			time.Sleep(pollInterval)
 		}
 	}
+}
+
+// extractJobID extracts the job ID from a polling URL (e.g. /v1/videos/job_xxx/poll).
+func extractJobID(pollingURL string) string {
+	parts := strings.Split(strings.TrimRight(pollingURL, "/"), "/")
+	for i, p := range parts {
+		if p == "videos" && i+1 < len(parts) {
+			return parts[i+1]
+		}
+	}
+	return pollingURL // fallback: return the URL itself
 }
 
 // openRouterHeaders returns the OpenRouter-specific HTTP headers as a map.

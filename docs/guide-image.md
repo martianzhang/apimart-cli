@@ -190,3 +190,26 @@ apimart-cli image --prompt "..." \
 | PNG | 需要透明背景、后续编辑、对画质要求高 |
 | JPEG | 日常使用、社交媒体分享、网页展示 |
 | WebP | 网页使用、需要小文件体积、支持透明 |
+
+## 超时处理
+
+图片生成可能因模型响应慢或网络问题超时。处理方式取决于 provider：
+
+**同步模式（OpenAI / OpenRouter / 第三方中转）**
+- 默认超时 180 秒
+- 超时后无法恢复，需要重新生成
+- 可通过 `--timeout` 增加超时时间：
+  ```bash
+  apimart-cli image --prompt "..." --timeout 300
+  ```
+- 或在配置文件中设置：`timeout: 300`
+
+**异步模式（APIMart）**
+- 超时后任务仍在后端运行，不会丢失
+- 使用 `task` 命令查询结果：
+  ```bash
+  apimart-cli task <task-id>
+  ```
+- 任务完成时会自动下载结果
+
+**建议**：如果频繁超时，优先考虑增加 `--timeout`；需要可恢复能力则使用 APIMart 异步模式。

@@ -341,7 +341,7 @@ func (c *Client) PollTask(taskID string) (*types.TaskData, error) {
 			if isTTY {
 				fmt.Println()
 			}
-			return nil, fmt.Errorf("polling timed out after %v", maxPollDuration)
+			return nil, fmt.Errorf("polling timed out after %v\n  The task may still be running. Use: apimart-cli task %s", maxPollDuration, taskID)
 		}
 
 		task, err := c.GetTask(taskID)
@@ -618,6 +618,27 @@ func isLocalFile(path string) bool {
 	return !info.IsDir()
 }
 
+// timeoutHint returns a user-facing hint when an API request times out.
+func timeoutHint() string {
+	return `Request timed out.
+
+  If using a sync provider (OpenAI / OpenRouter / third-party relay):
+    → Increase timeout: add --timeout <seconds> (e.g. --timeout 300)
+    → Or switch to an async provider (APIMart) for resumable tasks
+
+  If using an async provider (APIMart):
+    → The task may still be running. Use: apimart-cli task <task-id>`
+}
+
+// isTimeoutError checks if an error is caused by an HTTP timeout.
+func isTimeoutError(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	return strings.Contains(s, "timeout") || strings.Contains(s, "deadline exceeded") || strings.Contains(s, "Client.Timeout")
+}
+
 // --- HTTP helpers ---
 
 // doJSON sends a JSON request and unmarshals the response into result.
@@ -650,6 +671,9 @@ func (c *Client) doJSONWithHeaders(method, path string, body, result interface{}
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
+		if isTimeoutError(err) {
+			return fmt.Errorf("API request timed out: %w\n%s", err, timeoutHint())
+		}
 		return fmt.Errorf("API request failed: %w", err)
 	}
 	defer resp.Body.Close()
@@ -689,6 +713,9 @@ func (c *Client) doGetWithHeaders(path string, result interface{}, extraHeaders 
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
+		if isTimeoutError(err) {
+			return fmt.Errorf("request timed out: %w\n%s", err, timeoutHint())
+		}
 		return fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()

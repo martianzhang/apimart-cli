@@ -160,3 +160,31 @@ Job 文件保存在 `video_job_{jobId}.json`，内含 `polling_url`、`model`、
 | `--output` | | 下载目录（默认当前目录） |
 | `--save-prompt` | | 保存 prompt 到 `video_{task_id}.md` |
 | `--verbose` | `-v` | 显示请求 JSON 和完整响应（全局 flag） |
+
+## 超时处理
+
+视频生成耗时较长（通常 30 秒到几分钟），超时处理方式取决于 provider：
+
+**同步中转（部分第三方）**
+- 默认超时 600 秒（10 分钟）
+- 超时后无法恢复，需要重新生成
+- 可通过 `--timeout` 增加：
+  ```bash
+  apimart-cli video --prompt "..." --timeout 900
+  ```
+
+**APIMart 异步模式**
+- 超时后视频仍在后端渲染，不会丢失
+- 使用 `task` 命令查询结果：
+  ```bash
+  apimart-cli task <task-id>
+  ```
+
+**OpenRouter 视频**
+- 提交后返回 Job ID + polling_url，持久化到 `video_job_{id}.json`
+- 超时后可用 `--job-id` 恢复：
+  ```bash
+  apimart-cli video --job-id <job-id>
+  ```
+
+**建议**：视频生成耗时长，推荐使用 APIMart 或 OpenRouter 的异步模式以获得可恢复能力。
