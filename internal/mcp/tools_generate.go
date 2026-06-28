@@ -66,7 +66,7 @@ func generateImageHandler(cfg *Config) server.ToolHandlerFunc {
 
 		// Apply defaults
 		if req.Model == "" {
-			return nil, fmt.Errorf("model is required: set model in request or defaults.image.model in config.yaml")
+			return mcp.NewToolResultError("model is required: set model in request or defaults.image.model in config.yaml"), nil
 		}
 		if req.Size == "" {
 			req.Size = "1:1"
@@ -231,7 +231,7 @@ func generateVideoHandler(cfg *Config) server.ToolHandlerFunc {
 		}
 
 		if req.Model == "" {
-			return nil, fmt.Errorf("model is required: set model in request or defaults.video.model in config.yaml")
+			return mcp.NewToolResultError("model is required: set model in request or defaults.video.model in config.yaml"), nil
 		}
 		if req.Size == "" {
 			req.Size = "16:9"

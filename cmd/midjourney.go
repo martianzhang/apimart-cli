@@ -15,7 +15,7 @@ import (
 
 // newMJClient creates a client with Midjourney's default timeout.
 func newMJClient() *client.Client {
-	c := newMJClient()
+	c := client.New(apiKey, apiBase, httpProxy)
 	applyTimeout(c, "midjourney", client.MJTimeout)
 	return c
 }
