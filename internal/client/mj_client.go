@@ -82,7 +82,7 @@ func (c *Client) MidjourneyPollTask(taskID string) (*types.MJTaskData, error) {
 		}
 
 		switch task.Status {
-		case "SUCCESS", "FAILURE":
+		case "SUCCESS", "FAILURE", "success", "failure", "failed":
 			if isTTY {
 				fmt.Println()
 			}

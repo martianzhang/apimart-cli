@@ -361,18 +361,18 @@ func (c *Client) PollTask(taskID string) (*types.TaskData, error) {
 		}
 
 		switch task.Status {
-		case "completed":
+		case "completed", "success", "succeeded":
 			if isTTY {
 				fmt.Println()
 			}
 			return task, nil
-		case "failed":
+		case "failed", "failure":
 			if isTTY {
 				fmt.Println()
 			}
 			return nil, fmt.Errorf("task %s failed", taskID)
 		default:
-			// in_progress / submitted — keep polling
+			// in_progress / submitted / processing — keep polling
 		}
 
 		time.Sleep(pollInterval)
