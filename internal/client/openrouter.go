@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -25,40 +24,14 @@ const openrouterRequestTimeout = 120 * time.Second
 // OpenRouterImageGenerate sends a text-to-image request via OpenRouter's
 // Responses API (POST /v1/responses) with image output modalities.
 func (c *Client) OpenRouterImageGenerate(req *types.OpenRouterImageRequest) (*types.OpenRouterImageResponse, error) {
-	body, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	httpReq, err := http.NewRequest(http.MethodPost, c.baseURL+"/responses", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-	c.setOpenRouterHeaders(httpReq)
-
 	oldTimeout := c.httpClient.Timeout
 	c.httpClient.Timeout = openrouterRequestTimeout
 	defer func() { c.httpClient.Timeout = oldTimeout }()
 
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("API request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("OpenRouter image API returned status %d: %s", resp.StatusCode, string(respBody))
-	}
-
+	headers := openRouterHeaders()
 	var result types.OpenRouterImageResponse
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
+	if err := c.doJSONWithHeaders(http.MethodPost, "/responses", req, &result, headers); err != nil {
+		return nil, err
 	}
 	return &result, nil
 }
@@ -162,40 +135,14 @@ func (c *Client) OpenRouterDedicatedImage(req *types.GenerateRequest) (*types.Op
 		bodyMap["input_references"] = refs
 	}
 
-	body, err := json.Marshal(bodyMap)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	httpReq, err := http.NewRequest(http.MethodPost, c.baseURL+"/images", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-	c.setOpenRouterHeaders(httpReq)
-
 	oldTimeout := c.httpClient.Timeout
 	c.httpClient.Timeout = openrouterRequestTimeout
 	defer func() { c.httpClient.Timeout = oldTimeout }()
 
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("API request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("OpenRouter image API returned status %d: %s", resp.StatusCode, string(respBody))
-	}
-
+	headers := openRouterHeaders()
 	var result types.OpenAIImageResponse
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
+	if err := c.doJSONWithHeaders(http.MethodPost, "/images", bodyMap, &result, headers); err != nil {
+		return nil, err
 	}
 	return &result, nil
 }
@@ -206,36 +153,10 @@ func (c *Client) OpenRouterDedicatedImage(req *types.GenerateRequest) (*types.Op
 
 // OpenRouterVideoSubmit submits a video generation job and returns the job info.
 func (c *Client) OpenRouterVideoSubmit(req *types.OpenRouterVideoRequest) (*types.OpenRouterVideoSubmitResponse, error) {
-	body, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	httpReq, err := http.NewRequest(http.MethodPost, c.baseURL+"/videos", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-	c.setOpenRouterHeaders(httpReq)
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("API request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("OpenRouter video API returned status %d: %s", resp.StatusCode, string(respBody))
-	}
-
+	headers := openRouterHeaders()
 	var result types.OpenRouterVideoSubmitResponse
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
+	if err := c.doJSONWithHeaders(http.MethodPost, "/videos", req, &result, headers); err != nil {
+		return nil, err
 	}
 	return &result, nil
 }
@@ -272,30 +193,11 @@ func (c *Client) OpenRouterVideoPoll(pollingURL string) (*types.OpenRouterVideoS
 
 // OpenRouterVideoGet queries a video job by its ID via GET /v1/videos/{id}.
 func (c *Client) OpenRouterVideoGet(jobID string) (*types.OpenRouterVideoStatusResponse, error) {
-	httpReq, err := http.NewRequest(http.MethodGet, c.baseURL+"/videos/"+jobID, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create get request: %w", err)
-	}
-	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-	c.setOpenRouterHeaders(httpReq)
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("get request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read get response: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("get video job returned status %d: %s", resp.StatusCode, string(respBody))
-	}
-
+	path := "/videos/" + jobID
+	headers := openRouterHeaders()
 	var result types.OpenRouterVideoStatusResponse
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse get response: %w", err)
+	if err := c.doGetWithHeaders(path, &result, headers); err != nil {
+		return nil, err
 	}
 	return &result, nil
 }
@@ -363,4 +265,16 @@ func (c *Client) OpenRouterVideoPollUntilComplete(pollingURL string, pollInterva
 			time.Sleep(pollInterval)
 		}
 	}
+}
+
+// openRouterHeaders returns the OpenRouter-specific HTTP headers as a map.
+func openRouterHeaders() map[string]string {
+	h := make(map[string]string)
+	if ref := os.Getenv("OPENAI_REFERER"); ref != "" {
+		h[headerReferer] = ref
+	}
+	if title := os.Getenv("OPENAI_APP_TITLE"); title != "" {
+		h[headerTitle] = title
+	}
+	return h
 }

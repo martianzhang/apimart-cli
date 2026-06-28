@@ -13,6 +13,7 @@ const (
 	APIMart
 	OpenAI
 	OpenRouter
+	Yunwu
 )
 
 var names = map[Type]string{
@@ -20,6 +21,7 @@ var names = map[Type]string{
 	APIMart:    "APIMart",
 	OpenAI:     "OpenAI",
 	OpenRouter: "OpenRouter",
+	Yunwu:      "Yunwu（云雾AI）",
 }
 
 func (t Type) String() string {
@@ -48,6 +50,11 @@ var openrouterDomains = []string{
 	"openrouter.ai",
 }
 
+// yunwuDomains lists domains where Yunwu AI (云雾AI) APIs are served.
+var yunwuDomains = []string{
+	"yunwu.ai",
+}
+
 // Detect identifies the provider from an API base URL.
 // Returns Unknown if the URL doesn't match any known provider.
 func Detect(baseURL string) Type {
@@ -64,6 +71,11 @@ func Detect(baseURL string) Type {
 			return OpenRouter
 		}
 	}
+	for _, d := range yunwuDomains {
+		if strings.Contains(baseURL, d) {
+			return Yunwu
+		}
+	}
 	// Default to OpenAI-compatible for everything else
 	return OpenAI
 }
@@ -73,3 +85,6 @@ func IsAPIMart(baseURL string) bool { return Detect(baseURL) == APIMart }
 
 // IsOpenRouter is a convenience wrapper around Detect.
 func IsOpenRouter(baseURL string) bool { return Detect(baseURL) == OpenRouter }
+
+// IsYunwu is a convenience wrapper around Detect.
+func IsYunwu(baseURL string) bool { return Detect(baseURL) == Yunwu }

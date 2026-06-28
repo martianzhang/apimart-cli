@@ -1,0 +1,17 @@
+# https://golangci-lint.run/usage/configuration/
+linters:
+  enable:
+    - gofmt
+    - govet
+  disable:
+    - errcheck
+
+issues:
+  # Ignore pre-existing issues in vendored/test files
+  exclude:
+    - "exported .* should have comment"
+    - "ST1000" # package comment
+  exclude-use-default: false
+
+run:
+  timeout: 3m

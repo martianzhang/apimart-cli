@@ -29,6 +29,18 @@ func TestDetect_OpenRouter(t *testing.T) {
 	}
 }
 
+func TestDetect_Yunwu(t *testing.T) {
+	cases := []string{
+		"https://api.yunwu.ai",
+		"https://yunwu.ai",
+	}
+	for _, url := range cases {
+		if got := Detect(url); got != Yunwu {
+			t.Errorf("Detect(%q) = %v, want Yunwu", url, got)
+		}
+	}
+}
+
 func TestDetect_OpenAI(t *testing.T) {
 	cases := []string{
 		"https://api.openai.com/v1",
@@ -47,6 +59,15 @@ func TestDetect_Unknown(t *testing.T) {
 	}
 	if got := Detect("https://custom.relay.com/v1"); got != OpenAI {
 		t.Errorf("Detect(custom) = %v, want OpenAI (default)", got)
+	}
+}
+
+func TestDetect_IsYunwu(t *testing.T) {
+	if !IsYunwu("https://api.yunwu.ai/v1") {
+		t.Error("IsYunwu should be true for yunwu.ai")
+	}
+	if IsYunwu("https://api.apimart.ai") {
+		t.Error("IsYunwu should be false for apimart.ai")
 	}
 }
 
@@ -77,6 +98,9 @@ func TestType_String(t *testing.T) {
 	}
 	if OpenAI.String() != "OpenAI" {
 		t.Errorf("OpenAI.String() = %q", OpenAI.String())
+	}
+	if Yunwu.String() != "Yunwu（云雾AI）" {
+		t.Errorf("Yunwu.String() = %q", Yunwu.String())
 	}
 	if Unknown.String() != "unknown" {
 		t.Errorf("Unknown.String() = %q", Unknown.String())

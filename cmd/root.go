@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/martianzhang/apimart-cli/internal/config"
+	"github.com/martianzhang/apimart-cli/internal/provider"
 	"github.com/martianzhang/apimart-cli/internal/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -385,19 +386,16 @@ func detectProvider(rawURL string) string {
 		return "unknown"
 	}
 	host := strings.ToLower(u.Host)
-	switch {
-	case strings.Contains(host, "openrouter"):
-		return "OpenRouter"
-	case strings.Contains(host, "apimart"), strings.Contains(host, "apib"),
-		strings.Contains(host, "aiuxu"), strings.Contains(host, "aishuch"):
-		return "APIMart"
-	case strings.Contains(host, "openai"):
-		return "OpenAI"
-	case strings.Contains(host, "yunwu"), strings.Contains(host, "wlai"):
-		return "Yunwu (云雾)"
-	default:
-		return "third-party (" + host + ")"
+
+	p := provider.Detect(rawURL)
+	if p != provider.OpenAI {
+		return p.String()
 	}
+	// OpenAI-compatible could be OpenAI itself or a third-party relay
+	if strings.Contains(host, "openai") {
+		return "OpenAI"
+	}
+	return "third-party (" + host + ")"
 }
 
 // Execute adds all child commands to the root command and sets flags.

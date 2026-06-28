@@ -16,6 +16,7 @@ import (
 	"github.com/martianzhang/apimart-cli/internal/client"
 	"github.com/martianzhang/apimart-cli/internal/config"
 	"github.com/martianzhang/apimart-cli/internal/provider"
+	"github.com/martianzhang/apimart-cli/internal/service"
 	"github.com/martianzhang/apimart-cli/internal/types"
 )
 
@@ -711,17 +712,12 @@ func downloadImages(images []types.ImageResult, taskID string) error {
 	return nil
 }
 
-// savePromptFile saves the generation prompt to apimart_{taskID}.md.
+// savePromptFile saves the generation prompt to image_{taskID}.md.
 func savePromptFile(taskID, prompt string) {
-	if !savePrompt || prompt == "" {
+	if !savePrompt {
 		return
 	}
-	filename := filepath.Join(outputDir, fmt.Sprintf("image_%s.md", taskID))
-	content := fmt.Sprintf("# %s\n\n%s\n", taskID, prompt)
-	if err := os.WriteFile(filename, []byte(content), 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to save prompt file: %v\n", err)
-	}
-	fmt.Printf("Prompt saved: %s\n", filename)
+	service.SavePrompt(outputDir, taskID, prompt)
 }
 
 // httpGet performs a simple GET request and returns the body bytes.

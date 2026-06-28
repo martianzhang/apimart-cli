@@ -12,6 +12,8 @@ import (
 
 	"github.com/martianzhang/apimart-cli/internal/client"
 	"github.com/martianzhang/apimart-cli/internal/config"
+	"github.com/martianzhang/apimart-cli/internal/provider"
+	"github.com/martianzhang/apimart-cli/internal/service"
 	"github.com/martianzhang/apimart-cli/internal/types"
 )
 
@@ -164,9 +166,9 @@ var videoStrategies = []videoStrategy{
 		run: runOpenRouterVideo,
 	},
 	{
-		// Yunwu.ai: unified video API (submit → poll → download)
+		// Yunwu (云雾AI): unified video API (submit → poll → download)
 		match: func(req *types.VideoGenerateRequest) bool {
-			return isYunwuProvider()
+			return apiBase != "" && provider.IsYunwu(apiBase)
 		},
 		run: runYunwuVideo,
 	},
@@ -175,15 +177,6 @@ var videoStrategies = []videoStrategy{
 		match: func(req *types.VideoGenerateRequest) bool { return true },
 		run:   runAPIMartVideo,
 	},
-}
-
-// isYunwuProvider returns true if the base URL points to yunwu.ai.
-func isYunwuProvider() bool {
-	base := apiBase
-	if base == "" {
-		return false
-	}
-	return strings.Contains(base, "yunwu.ai")
 }
 
 // runAPIMartVideo handles video generation via APIMart async task API.
@@ -562,15 +555,7 @@ func downloadVideos(videos []types.VideoResult, taskID string) error {
 
 // extractExt returns the file extension from a URL, defaulting to .mp4.
 func extractExt(rawURL string) string {
-	// Strip query params
-	if idx := strings.Index(rawURL, "?"); idx != -1 {
-		rawURL = rawURL[:idx]
-	}
-	ext := filepath.Ext(rawURL)
-	if ext == "" {
-		return ".mp4"
-	}
-	return ext
+	return service.ExtractExt(rawURL)
 }
 
 // ---------------------------------------------------------------------------
