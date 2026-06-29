@@ -79,24 +79,27 @@ apimart-cli --version
 
 ## API 参考
 
-| 端点 | 用途 | 适用 |
-|---|---|---|
-| `POST /v1/chat/completions` | AI 对话 | 通用 ✅ |
-| `POST /v1/images/generations` | 文生图（同步/异步） | 通用 ✅ |
-| `POST /v1/images` | 文生图（OpenRouter 专用 API，支持 input_references） | OpenRouter ✅ |
-| `POST /v1/responses` | 文生图（OpenRouter Responses API，原生图片输出模型） | OpenRouter ✅ |
-| `POST /v1/videos/generations` | 文生视频 | APIMart ✅ |
-| `POST /v1/videos` | 文生视频（异步 submit → poll → download） | OpenRouter ✅ |
-| `GET /v1/images/models` | 图片模型发现（免认证，含参数能力描述） | OpenRouter ✅ |
-| `GET /v1/videos/models` | 视频模型发现（免认证） | OpenRouter ✅ |
-| `POST /v1/midjourney/generations` (及 16 个子端点) | Midjourney 图生/编辑 | APIMart ✅ |
-| `POST /v1/uploads/images` | 上传图片 | APIMart ✅ |
-| `GET /v1/tasks/{task_id}` | 查询任务状态 | APIMart ✅ |
-| `GET /v1/midjourney/{task_id}` | 查询 MJ 任务（含 buttons） | APIMart ✅ |
-| `GET /v1/balance` | Token 余额查询 | APIMart ✅ |
-| `GET /v1/user/balance` | 用户余额查询 | APIMart ✅ |
-| `GET /api/marketplace/models` | 模型列表（免认证） | APIMart ✅ |
-| `GET /api/pricing/model` | 模型定价详情（免认证） | APIMart ✅ |
-| `GET /v1/models` | 模型列表 | OpenAI/OpenRouter ✅ |
+> 各端口的接口规范详细参考来源见 [api-reference.md](api-reference.md)。
 
-完整文档见 [docs.apimart.ai](https://docs.apimart.ai/en)。
+| 端点 | 用途 | 适用 | 参考来源 |
+|---|---|---|---|
+| `POST /v1/chat/completions` | AI 对话 | 通用 ✅ | [OpenAI Chat](https://platform.openai.com/docs/api-reference/chat/create) |
+| `POST /v1/images/generations` | 文生图（同步/异步） | 通用 ✅ | [OpenAI Images](https://platform.openai.com/docs/api-reference/images/create) / [APIMart](https://docs.apimart.ai/en) |
+| `POST /v1/images` | 文生图（OpenRouter 专用 API，支持 input_references） | OpenRouter ✅ | [OpenRouter Image](https://openrouter.ai/docs/guides/overview/multimodal/image-generation) |
+| `POST /v1/responses` | 文生图（OpenRouter Responses API，原生图片输出模型） | OpenRouter ✅ | [OpenRouter Responses](https://openrouter.ai/docs/guides/overview/multimodal/image-generation) |
+| `POST /v1/videos/generations` | 文生视频 | APIMart ✅ | [APIMart Docs](https://docs.apimart.ai/en) |
+| `POST /v1/videos` | 文生视频（异步 submit → poll → download） | OpenRouter ✅ | [OpenRouter Video](https://openrouter.ai/docs/guides/overview/multimodal/video-generation) |
+| `POST /v1/video/create` | 文生视频 | 云雾 Yunwu ✅ | 云雾 API 文档 |
+| `GET /v1/images/models` | 图片模型发现（免认证，含参数能力描述） | OpenRouter ✅ | [OpenRouter Image Models](https://openrouter.ai/docs/api/api-reference/images/list-image-models) |
+| `GET /v1/videos/models` | 视频模型发现（免认证） | OpenRouter ✅ | [OpenRouter Video Models](https://openrouter.ai/docs/api/api-reference/video-generation/list-videos-models) |
+| `POST /v1/midjourney/generations` (及 16 个子端点) | Midjourney 图生/编辑 | APIMart ✅ | [APIMart Docs](https://docs.apimart.ai/en) |
+| `POST /v1/uploads/images` | 上传图片 | APIMart ✅ | [APIMart Docs](https://docs.apimart.ai/en) |
+| `GET /v1/tasks/{task_id}` | 查询任务状态 | APIMart ✅ | [APIMart Docs](https://docs.apimart.ai/en) |
+| `GET /v1/midjourney/{task_id}` | 查询 MJ 任务（含 buttons） | APIMart ✅ | [APIMart Docs](https://docs.apimart.ai/en) |
+| `GET /v1/balance` | Token 余额查询 | APIMart ✅ | [APIMart Docs](https://docs.apimart.ai/en) |
+| `GET /v1/user/balance` | 用户余额查询 | APIMart ✅ | [APIMart Docs](https://docs.apimart.ai/en) |
+| `GET /api/marketplace/models` | 模型列表（免认证） | APIMart ✅ | [APIMart Docs](https://docs.apimart.ai/en) |
+| `GET /api/pricing/model` | 模型定价详情（免认证） | APIMart ✅ | [APIMart Docs](https://docs.apimart.ai/en) |
+| `GET /v1/models` | 模型列表 | OpenAI/OpenRouter ✅ | [OpenAI Models](https://platform.openai.com/docs/api-reference/models/list) / [OpenRouter Models](https://openrouter.ai/docs/api/api-reference/models/get-models) |
+
+各端口的接口规范详细参考来源、Provider 检测机制和策略路由说明见 [api-reference.md](api-reference.md)。

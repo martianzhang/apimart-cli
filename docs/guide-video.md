@@ -6,11 +6,12 @@
 
 根据 `base_url` 自动选择视频 API：
 
-| Provider | 接口 | 模式 |
-|---|---|---|
-| APIMart | `POST /v1/videos/generations` | 异步 task → poll → download |
-| OpenRouter | `POST /v1/videos` | 异步 submit → poll → download |
-| 其他 | 不支持 | — |
+| Provider | 接口 | 模式 | 参考来源 |
+|---|---|---|---|
+| APIMart | `POST /v1/videos/generations` | 异步 task → poll → download | [APIMart Docs](https://docs.apimart.ai/en) |
+| OpenRouter | `POST /v1/videos` | 异步 submit → poll → download | [OpenRouter Video](https://openrouter.ai/docs/guides/overview/multimodal/video-generation) |
+| 云雾 Yunwu | `POST /v1/video/create` + `GET /v1/video/query?id=` | 异步 submit → poll → download | 云雾 API 文档 |
+| 其他 | 不支持 | — | — |
 
 当 `base_url` 包含 `openrouter.ai` 时，自动切换到 OpenRouter 视频 API。
 

@@ -147,7 +147,7 @@ scope: `image` / `video` / `chat` / `midjourney` / `mcp` / `config` / `docs` / `
 apimart-cli/
 ├── cmd/              # cobra 命令定义（薄层：解析参数→调用逻辑→输出结果）
 ├── internal/
-│   ├── client/       # HTTP API 客户端（APIMart / OpenAI / OpenRouter / 云坞）
+│   ├── client/       # HTTP API 客户端（APIMart / OpenAI / OpenRouter / 云雾）
 │   ├── config/       # Viper 配置加载（YAML + 环境变量）
 │   ├── mcp/          # MCP Server 实现
 │   ├── provider/     # Provider 检测（APIMart / OpenAI / OpenRouter）

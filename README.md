@@ -95,6 +95,7 @@ apimart-cli
 | [Midjourney 生成](docs/guide-midjourney.md) | 17 个子命令完整说明：imagine、blend、upscale 等 |
 | [AI 对话](docs/guide-chat.md) | 交互式多轮 REPL、流式输出、verbose 统计 |
 | [其他命令](docs/guide-commands.md) | models、task、balance、dry-run、API 参考 |
+| [API 参考来源](docs/api-reference.md) | 各 Provider 接口规范来源、检测机制、策略路由 |
 | [常见问题](docs/faq.md) | 安装、使用、MCP、费用等常见问题解答 |
 | [MCP 集成](docs/mcp.md) | AI 代理（Claude/Cursor）集成指南 |
 
