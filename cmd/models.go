@@ -98,6 +98,12 @@ func runModelsMarketplace(mediaType string) error {
 	base = strings.TrimRight(base, "/")
 	base = strings.TrimSuffix(base, "/v1") // marketplace API doesn't use /v1 prefix
 
+	firstURL := fmt.Sprintf("%s/api/marketplace/models?sort=newest&page=1&page_size=50", base)
+	if mediaType != "" {
+		firstURL += "&type=" + mediaType
+	}
+	printAPIURL(firstURL)
+
 	httpClient := httpProxyClient()
 	pageSize := 50
 	page := 1
@@ -173,7 +179,7 @@ func runModelsMarketplace(mediaType string) error {
 	if mediaType != "" {
 		title = strings.ToUpper(mediaType[:1]) + mediaType[1:] + " Models"
 	}
-	fmt.Printf("\n%s (%d total)\n\n", title, total)
+	fmt.Printf("%s (%d total)\n\n", title, total)
 
 	for _, g := range groups {
 		fmt.Printf("  %s:\n", g.vendor)
@@ -209,6 +215,8 @@ func runModelsOpenRouterDiscovery(mediaType string) error {
 		endpoint = base + "/models"
 	}
 
+	printAPIURL(endpoint)
+
 	client := httpProxyClient()
 	resp, err := client.Get(endpoint)
 	if err != nil {
@@ -240,7 +248,7 @@ func runModelsOpenRouterDiscovery(mediaType string) error {
 	}
 
 	title := strings.ToUpper(mediaType[:1]) + mediaType[1:] + " Models"
-	fmt.Printf("\n%s (%d)\n\n", title, len(list.Data))
+	fmt.Printf("%s (%d)\n\n", title, len(list.Data))
 
 	for _, m := range list.Data {
 		fmt.Printf("  %s\n", m.ID)
@@ -304,6 +312,16 @@ var cmdPriceChanged bool
 
 // runModelsOpenAI fetches and displays models from OpenAI-compatible /v1/models.
 func runModelsOpenAI() error {
+	base := shared.APIBase
+	if base == "" {
+		base = "https://api.openai.com"
+	}
+	base = strings.TrimRight(base, "/")
+	if !hasVersionSuffix(base) {
+		base += "/v1"
+	}
+	printAPIURL(base + "/models")
+
 	c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 	models, err := c.ListModelsOpenAI()
 	if err != nil {
@@ -315,7 +333,7 @@ func runModelsOpenAI() error {
 		return nil
 	}
 
-	fmt.Printf("\nAvailable models (%d):\n\n", len(models))
+	fmt.Printf("Available models (%d):\n\n", len(models))
 	for _, m := range models {
 		line := fmt.Sprintf("  %s", m.ID)
 		// Only annotate when owned_by provides useful information
@@ -330,6 +348,16 @@ func runModelsOpenAI() error {
 
 // runModelsDetail fetches and displays a single model via /v1/models/{model}.
 func runModelsDetail(modelID string) error {
+	base := shared.APIBase
+	if base == "" {
+		base = "https://api.openai.com"
+	}
+	base = strings.TrimRight(base, "/")
+	if !hasVersionSuffix(base) {
+		base += "/v1"
+	}
+	printAPIURL(base + "/models/" + modelID)
+
 	c := client.New(shared.APIKey, shared.APIBase, shared.HTTPProxy)
 	model, err := c.GetModelOpenAI(modelID)
 	if err != nil {
@@ -341,7 +369,7 @@ func runModelsDetail(modelID string) error {
 		return fmt.Errorf("model %q not found", modelID)
 	}
 
-	fmt.Printf("\n  %s\n", model.ID)
+	fmt.Printf("  %s\n", model.ID)
 	if model.Object != "" {
 		fmt.Printf("    Object:   %s\n", model.Object)
 	}
@@ -374,10 +402,12 @@ func formatPrice(m types.MarketplaceModel) string {
 // runModelsPricing fetches and displays detailed pricing for a single model.
 func runModelsPricing(modelName string) error {
 	base := mainDomain(shared.APIBase)
-	url := base + "/api/pricing/model?model=" + modelName
+	pricingURL := base + "/api/pricing/model?model=" + modelName
+
+	printAPIURL(pricingURL)
 
 	c := httpProxyClient()
-	resp, err := c.Get(url)
+	resp, err := c.Get(pricingURL)
 	if err != nil {
 		return fmt.Errorf("failed to fetch pricing: %w", err)
 	}
@@ -406,7 +436,7 @@ func runModelsPricing(modelName string) error {
 		return fmt.Errorf("model %q not found", modelName)
 	}
 
-	fmt.Printf("\n%s\n", d.ModelName)
+	fmt.Printf("%s\n", d.ModelName)
 	fmt.Printf("  Billing: %s\n", d.BillingType)
 	fmt.Printf("  Base price: $%.5f\n", d.ModelPrice)
 	fmt.Printf("  Discount: %.0f%%\n", (1-d.DiscountRate)*100)
@@ -490,4 +520,28 @@ func init() {
 	modelsCmd.Flags().StringVarP(&modelType, "type", "t", "", "Filter by media type (APIMart marketplace): image, video, chat")
 	modelsCmd.Flags().StringVarP(&priceArg, "price", "p", "", "Show pricing column (no arg) or model pricing details (with model name) (APIMart only)")
 	rootCmd.AddCommand(modelsCmd)
+}
+
+// printAPIURL prints the API endpoint being called in a consistent format.
+func printAPIURL(apiURL string) {
+	fmt.Printf("API: %s\n", apiURL)
+}
+
+// hasVersionSuffix reports whether urlStr ends with a version path segment like /v1, /v2.
+// Copied from internal/client/client.go (unexported helper).
+func hasVersionSuffix(urlStr string) bool {
+	lastSlash := strings.LastIndex(urlStr, "/")
+	if lastSlash < 0 || lastSlash == len(urlStr)-1 {
+		return false
+	}
+	seg := urlStr[lastSlash+1:]
+	if len(seg) < 2 || seg[0] != 'v' {
+		return false
+	}
+	for i := 1; i < len(seg); i++ {
+		if seg[i] < '0' || seg[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
