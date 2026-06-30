@@ -22,8 +22,12 @@ apimart-cli ideas "cinematic portrait"
 # 多要一些结果
 apimart-cli ideas "luxury perfume" --limit 10
 
-# 随机抽取
+# 随机抽取（搭配关键词）
 apimart-cli ideas "portrait" --random
+
+# 随机灵感：不提供关键词，从全量数据中随机返回
+apimart-cli ideas --random
+apimart-cli ideas --random --limit 1    # 只随机显示一个
 
 # 从 stdin 读取关键词
 echo "cyberpunk city" | apimart-cli ideas
@@ -71,7 +75,7 @@ apimart-cli ideas "cat" --json \
 |---|---|---|
 | `keywords` | | 搜索关键词（位置参数，也从 stdin 读取） |
 | `--limit` | `-l` | 返回 N 条结果，默认 8 |
-| `--random` | | 从全量结果中随机抽取 |
+| `--random` | | 从全量结果中随机抽取；不提供关键词时单独使用则从全部数据中随机返回 |
 | `--json` | | 输出 JSON 格式（默认 Markdown） |
 | `--save` | | 下载参考图片到本地目录 |
 | `--output` | | 输出目录（仅 `--save` 时生效，图片存到 `{output}/ideas/images/`） |

@@ -69,6 +69,8 @@ Keywords can be passed as arguments or via stdin:
 
   apimart-cli ideas "cinematic portrait"
   apimart-cli ideas "luxury perfume" --limit 3
+  apimart-cli ideas --random              # random ideas without keywords
+  apimart-cli ideas --random --limit 1    # single random idea
   echo "cyberpunk city" | apimart-cli ideas
   apimart-cli ideas --json "cat" | jq '.results[].prompt'
 
@@ -82,9 +84,6 @@ func runIdeas(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if keywords == "" && ideasFindImage == "" {
-		return fmt.Errorf("keywords or --find-image are required")
-	}
 
 	// Load ideas.json
 	entries, err := loadIdeas()
@@ -97,8 +96,16 @@ func runIdeas(cmd *cobra.Command, args []string) error {
 	if ideasFindImage != "" {
 		results = searchByImage(entries, ideasFindImage)
 		keywords = "图片: " + ideasFindImage
-	} else {
+	} else if keywords != "" {
 		results = searchIdeas(entries, keywords)
+	} else if ideasRandom {
+		// --random without keywords: return all entries randomly
+		for i := range entries {
+			results = append(results, searchResult{entry: entries[i]})
+		}
+		keywords = "随机灵感"
+	} else {
+		return fmt.Errorf("keywords or --find-image are required")
 	}
 	if len(results) == 0 {
 		fmt.Println("没有找到匹配的提示词。")
@@ -120,6 +127,11 @@ func runIdeas(cmd *cobra.Command, args []string) error {
 		limit = total
 	}
 	results = results[:limit]
+
+	// --preview implies --save: system viewer needs files on disk
+	if ideasPreview && !ideasSaveImages {
+		ideasSaveImages = true
+	}
 
 	// Save images if requested
 	if ideasSaveImages {
@@ -264,7 +276,13 @@ func outputMarkdown(results []searchResult, keywords string, total int, savedFil
 		if len(e.ImageURLs) > 0 {
 			if ideasSaveImages {
 				for j, url := range e.ImageURLs {
-					fmt.Printf("![参考图 %d](%s)\n\n", j+1, localImagePath(url))
+					localPath := localImagePath(url)
+					// Only use local path if the file was actually saved
+					if _, err := os.Stat(localPath); err == nil {
+						fmt.Printf("![参考图 %d](%s)\n\n", j+1, localPath)
+					} else {
+						fmt.Printf("![参考图 %d](%s)\n\n", j+1, url)
+					}
 				}
 			} else {
 				for j, url := range e.ImageURLs {
@@ -339,15 +357,9 @@ func saveIdeaImages(entries []IdeaEntry) ([]string, error) {
 				saved = append(saved, path)
 				continue
 			}
-			resp, err := http.DefaultClient.Get(imgURL)
+			data, err := downloadImage(imgURL)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: failed to download %s: %v\n", imgURL, err)
-				continue
-			}
-			data, err := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: failed to read %s: %v\n", imgURL, err)
 				continue
 			}
 			if err := os.WriteFile(path, data, 0644); err != nil {
@@ -365,6 +377,65 @@ func localImagePath(remoteURL string) string {
 		return ""
 	}
 	return filepath.Join(shared.OutputDir, filepath.Base(remoteURL))
+}
+
+// downloadImage downloads a URL to a byte slice with browser-like headers
+// and retry on transient errors (EOF, connection reset).
+// Inherits proxy settings from http.DefaultClient (configured by ConfigureDefaultClient).
+func downloadImage(url string) ([]byte, error) {
+	// Use DefaultClient's transport to inherit proxy configuration;
+	// fall back to http.DefaultTransport if DefaultClient was not customized.
+	transport := http.DefaultClient.Transport
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+	client := &http.Client{
+		Timeout:   30 * time.Second,
+		Transport: transport,
+	}
+
+	var lastErr error
+	for attempt := range 3 {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt) * time.Second)
+		}
+
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		// Browser-like User-Agent to avoid CDN blocking
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
+		// Set Referer for Twitter CDN images
+		if strings.Contains(url, "twimg.com") || strings.Contains(url, "x.com") {
+			req.Header.Set("Referer", "https://x.com/")
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+			// Retry on EOF or connection reset — transient CDN issues
+			if strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(), "connection reset") {
+				continue
+			}
+			return nil, err
+		}
+
+		data, readErr := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if readErr != nil {
+			lastErr = readErr
+			continue
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			lastErr = fmt.Errorf("HTTP %d", resp.StatusCode)
+			continue
+		}
+		return data, nil
+	}
+	return nil, fmt.Errorf("failed after 3 attempts: %w", lastErr)
 }
 
 func init() {
