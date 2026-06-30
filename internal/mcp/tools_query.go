@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -298,24 +297,15 @@ func handleMCPGetAPIMartTask(c client.APIClient, taskID, outputDir string) (*mcp
 }
 
 // fetchModels gets models from the marketplace API.
-func fetchModels(baseURL, mediaType, proxy string) ([]types.MarketplaceModel, error) {
+func fetchModels(baseURL, mediaType, _ string) ([]types.MarketplaceModel, error) {
 	if baseURL == "" {
 		baseURL = "https://api.apimart.ai"
 	}
 	baseURL = strings.TrimRight(baseURL, "/")
 	baseURL = strings.TrimSuffix(baseURL, "/v1") // marketplace API doesn't use /v1 prefix
 
-	// Build client
-	transport := &http.Transport{}
-	if proxy != "" {
-		if parsed, err := url.Parse(proxy); err == nil {
-			transport.Proxy = http.ProxyURL(parsed)
-		}
-	} else {
-		transport.Proxy = http.ProxyFromEnvironment
-	}
-	c := &http.Client{Transport: transport}
-
+	// Reuse the global DefaultClient which is configured with proxy at startup
+	c := http.DefaultClient
 	pageSize := 50
 	page := 1
 	var allModels []types.MarketplaceModel

@@ -166,7 +166,18 @@ apimart-cli/
 └── TODO.md           # 已知问题清单
 ```
 
-### 5.1 关键设计决策
+### 5.1 HTTP 代理（http_proxy）
+
+配置了 `http_proxy` 后，**所有** HTTP 请求都必须走代理，包括：
+- API 调用（image/video/chat/balance/task 等） — 通过 `client.New()` 创建的客户端
+- 文件下载（下载生成的图片/视频） — 使用 `http.Get()` / `http.DefaultClient`
+- 非 API 请求（如 ideas 搜索、模型定价查询）
+
+实现方式：在启动入口（`root.go` / `mcp.go` 的 `PersistentPreRunE`）调用 `client.ConfigureDefaultClient(proxyURL)` 配置全局 `http.DefaultClient`。所有使用 `http.Get()`、`http.DefaultClient` 或自定义 HTTP 客户端的地方**不要自行构建 transport**，应复用 `http.DefaultClient` 以自动继承代理配置。
+
+> 新增 HTTP 调用时，优先使用 `http.DefaultClient`，不要新建 `http.Client` 或使用裸 `http.Get()` 以外的 `Transport` 配置。
+
+### 5.2 关键设计决策
 
 - **Provider 检测**集中到 `internal/provider`，新增 provider 只需改此包和策略表
 - **策略路由**（`imageStrategies` / `videoStrategies`）用 match-run 模式派发到不同后端

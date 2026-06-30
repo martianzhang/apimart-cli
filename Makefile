@@ -11,29 +11,36 @@ ifeq ($(OS),Windows_NT)
 	OUTPUT := $(BINARY).exe
 endif
 
-.PHONY: all build clean run lint vet test fmt cover release help
+IDEAS_JSON ?= cmd/ideas.json
+UPDATE ?= 0
+
+.PHONY: all build clean run lint vet test fmt cover release help ideas
 
 all: build
 
 ## Format all Go source code
-fmt: 
+fmt:
 	$(GO) fmt ./...
 
 ## Build the binary
-build: fmt
+build: fmt ideas
 	$(GO) build $(GOFLAGS) -o $(OUTPUT) .
 
+## Ensure ideas.json exists (skip if already generated, make ideas UPDATE=1 to force)
+ideas:
+	@[ $(UPDATE) -eq 0 ] && [ -f $(IDEAS_JSON) ] && echo "$(IDEAS_JSON) exists, skipping" || (echo "=== Building ideas.json ===" && python scripts/convert_ideas.py $(if $(filter 1,$(UPDATE)),--update) || python3 scripts/convert_ideas.py $(if $(filter 1,$(UPDATE)),--update))
+
 ## Build and run with args (usage: make run ARGS="image --help")
-run: 
+run:
 	$(GO) run . $(ARGS)
 
 ## Remove build artifacts
-clean: 
+clean:
 	rm -f $(BINARY) $(BINARY).exe
 	rm -rf $(RELEASE_DIR)
 
 ## Run static analysis
-lint: 
+lint:
 	$(GO) vet ./...
 
 vet: lint
@@ -43,7 +50,7 @@ test: fmt
 	$(GO) test ./... -v -count=1
 
 ## Run tests with coverage report
-cover: 
+cover:
 	$(GO) test ./... -cover -count=1
 	@echo ""
 	@echo "=== Detailed coverage ==="
@@ -54,7 +61,7 @@ cover:
 
 ## Cross-compile for all targets into dist/
 TARGETS ?= linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
-release: 
+release:
 	@mkdir -p $(RELEASE_DIR)
 	@set -e; for target in $(TARGETS); do \
 		os=$$(echo $$target | cut -d/ -f1); \
@@ -70,6 +77,6 @@ release:
 	@ls -lh $(RELEASE_DIR)/
 
 ## Show this help
-help: 
+help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'

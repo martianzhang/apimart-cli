@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/martianzhang/apimart-cli/internal/client"
 	"github.com/martianzhang/apimart-cli/internal/config"
 	"github.com/martianzhang/apimart-cli/internal/mcp"
 	"github.com/spf13/cobra"
@@ -75,6 +76,8 @@ func init() {
 				shared.OutputDir = c.OutputDir
 			}
 		}
+		// Configure global HTTP client with proxy for all requests
+		client.ConfigureDefaultClient(shared.HTTPProxy)
 		// Don't error on missing API key - tools will handle it gracefully
 		return nil
 	}

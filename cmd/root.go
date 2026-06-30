@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/martianzhang/apimart-cli/internal/client"
 	"github.com/martianzhang/apimart-cli/internal/config"
 	"github.com/martianzhang/apimart-cli/internal/provider"
 	"github.com/martianzhang/apimart-cli/internal/types"
@@ -63,6 +64,8 @@ OpenAI-compatible third-party relay. Backward-compatible with APIMart.`,
 				shared.TimeoutFlag = *cfg.Timeout
 			}
 		}
+		// Configure global HTTP client with proxy for all requests
+		client.ConfigureDefaultClient(shared.HTTPProxy)
 		// Only require API key for commands that need it
 		if cmd.Name() != "ideas" && shared.APIKey == "" {
 			return fmt.Errorf("API key is required: set it via --api-key flag, OPENAI_API_KEY env, or config.yaml")
