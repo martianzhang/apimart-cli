@@ -40,75 +40,147 @@ func TestResolveIdeasKeywords_noArgs(t *testing.T) {
 	}
 }
 
-// --- scoreEntry ---
+// --- containsWord (word-boundary check) ---
 
-func TestScoreEntry_matchTitle(t *testing.T) {
-	e := IdeaEntry{Title: "Cinematic Portrait", Prompt: "A photo"}
-	score := scoreEntry(e, []string{"portrait"})
-	if score < 2 {
-		t.Errorf("scoreEntry() = %d, want >= 2 (title match bonus)", score)
+func TestContainsWord_exact(t *testing.T) {
+	if !containsWord("cat portrait", "cat") {
+		t.Error(`containsWord("cat portrait", "cat") = false, want true`)
 	}
 }
 
-func TestScoreEntry_matchPrompt(t *testing.T) {
-	e := IdeaEntry{Title: "Something", Prompt: "cinematic lighting portrait"}
-	score := scoreEntry(e, []string{"portrait"})
-	if score < 1 {
-		t.Errorf("scoreEntry() = %d, want >= 1", score)
+func TestContainsWord_substring(t *testing.T) {
+	if containsWord("category portrait", "cat") {
+		t.Error(`containsWord("category portrait", "cat") = true, want false`)
 	}
 }
 
-func TestScoreEntry_noMatch(t *testing.T) {
-	e := IdeaEntry{Title: "Cat", Prompt: "A cute cat"}
-	score := scoreEntry(e, []string{"portrait"})
-	if score != 0 {
-		t.Errorf("scoreEntry() = %d, want 0", score)
+func TestContainsWord_absent(t *testing.T) {
+	if containsWord("dog portrait", "cat") {
+		t.Error(`containsWord("dog portrait", "cat") = true, want false`)
 	}
 }
 
-func TestScoreEntry_multiKeyword(t *testing.T) {
-	e := IdeaEntry{Title: "Cat Portrait", Prompt: "A cat portrait photo"}
-	score := scoreEntry(e, []string{"cat", "portrait"})
-	if score < 4 {
-		t.Errorf("scoreEntry() = %d, want >= 4", score)
+func TestContainsWord_endOfString(t *testing.T) {
+	if !containsWord("my cat", "cat") {
+		t.Error(`containsWord("my cat", "cat") = false, want true`)
 	}
 }
 
-func TestScoreEntry_caseInsensitive(t *testing.T) {
-	e := IdeaEntry{Title: "CINEMATIC PORTRAIT", Prompt: "test"}
-	score := scoreEntry(e, []string{"cinematic"})
-	if score < 2 {
-		t.Errorf("scoreEntry() should be case-insensitive, got %d", score)
+func TestContainsWord_caseInsensitive(t *testing.T) {
+	if !containsWord("MY CAT", "cat") {
+		t.Error(`containsWord("MY CAT", "cat") = false, want true`)
 	}
 }
 
-func TestScoreEntry_zhMatch(t *testing.T) {
-	e := IdeaEntry{TitleZh: "电影感肖像", PromptZh: "一张电影感肖像照片"}
-	score := scoreEntry(e, []string{"电影"})
-	if score < 1 {
-		t.Errorf("scoreEntry() should match zh text, got %d", score)
+// --- andFilter ---
+
+func TestAndFilter_allMatch(t *testing.T) {
+	e := IdeaEntry{Title: "Cat Portrait", Prompt: "A photo of a cat"}
+	if !andFilter(e, []string{"cat", "portrait"}) {
+		t.Error("andFilter() = false, want true")
 	}
 }
 
-// --- searchIdeas ---
+func TestAndFilter_partialMatch(t *testing.T) {
+	e := IdeaEntry{Title: "Cat", Prompt: "A photo"}
+	if andFilter(e, []string{"cat", "portrait"}) {
+		t.Error("andFilter() = true, want false")
+	}
+}
+
+func TestAndFilter_zhMatch(t *testing.T) {
+	e := IdeaEntry{TitleZh: "电影感肖像", PromptZh: "一张照片"}
+	if !andFilter(e, []string{"电影"}) {
+		t.Error("andFilter() should match zh text")
+	}
+}
+
+// --- tokenize ---
+
+func TestTokenize_basic(t *testing.T) {
+	tokens := tokenize("Cat Portrait Photo")
+	if len(tokens) != 3 || tokens[0] != "cat" || tokens[1] != "portrait" {
+		t.Errorf("tokenize() = %v, want [cat portrait photo]", tokens)
+	}
+}
+
+func TestTokenize_shortTokensSkipped(t *testing.T) {
+	tokens := tokenize("a bc def")
+	for _, tok := range tokens {
+		if len(tok) < 2 {
+			t.Errorf("tokenize() produced short token %q", tok)
+		}
+	}
+}
+
+func TestTokenize_empty(t *testing.T) {
+	if tokens := tokenize(""); len(tokens) != 0 {
+		t.Errorf("tokenize('') = %v, want empty", tokens)
+	}
+}
+
+// --- ngramSet ---
+
+func TestNgramSet_basic(t *testing.T) {
+	grams := ngramSet("cat", 2)
+	if grams["ca"] != 1 || grams["at"] != 1 {
+		t.Errorf("ngramSet('cat', 2) = %v, want {ca:1, at:1}", grams)
+	}
+}
+
+func TestNgramSet_tooShort(t *testing.T) {
+	grams := ngramSet("ab", 3)
+	if len(grams) != 0 {
+		t.Errorf("ngramSet('ab', 3) should be empty, got %v", grams)
+	}
+}
+
+// --- cosineSimilarity ---
+
+func TestCosineSimilarity_identical(t *testing.T) {
+	a := map[string]int{"ca": 1, "at": 1}
+	b := map[string]int{"ca": 1, "at": 1}
+	sim := cosineSimilarity(a, b)
+	if sim < 0.999 || sim > 1.001 {
+		t.Errorf("cosineSimilarity(identical) = %f, want ~1.0", sim)
+	}
+}
+
+func TestCosineSimilarity_orthogonal(t *testing.T) {
+	a := map[string]int{"ca": 1}
+	b := map[string]int{"do": 1}
+	sim := cosineSimilarity(a, b)
+	if sim != 0.0 {
+		t.Errorf("cosineSimilarity(orthogonal) = %f, want 0.0", sim)
+	}
+}
+
+// --- searchIdeas (integration via BM25 index) ---
+
+func buildTestIndex(entries []IdeaEntry) *bm25Index {
+	return buildBM25Index(entries)
+}
 
 func TestSearchIdeas_emptyQuery(t *testing.T) {
 	entries := []IdeaEntry{{Title: "Test", Prompt: "test"}}
-	results := searchIdeas(entries, "")
+	idx := buildTestIndex(entries)
+	results := searchIdeas(entries, idx, "")
 	if results != nil {
 		t.Errorf("searchIdeas('') = %v, want nil", results)
 	}
 }
 
-func TestSearchIdeas_sortedByScore(t *testing.T) {
+func TestSearchIdeas_titleMatchRanksHigher(t *testing.T) {
 	entries := []IdeaEntry{
 		{Title: "Cat Portrait", Prompt: "a cat"},
 		{Title: "Something Else", Prompt: "portrait photo"},
 	}
-	results := searchIdeas(entries, "portrait")
+	idx := buildTestIndex(entries)
+	results := searchIdeas(entries, idx, "portrait")
 	if len(results) != 2 {
 		t.Fatalf("searchIdeas() = %d results, want 2", len(results))
 	}
+	// Title match should rank higher
 	if results[0].score < results[1].score {
 		t.Errorf("title match should rank higher, got %d < %d", results[0].score, results[1].score)
 	}
@@ -116,9 +188,40 @@ func TestSearchIdeas_sortedByScore(t *testing.T) {
 
 func TestSearchIdeas_noMatches(t *testing.T) {
 	entries := []IdeaEntry{{Title: "Cat", Prompt: "meow"}}
-	results := searchIdeas(entries, "portrait")
+	idx := buildTestIndex(entries)
+	results := searchIdeas(entries, idx, "portrait")
 	if len(results) != 0 {
 		t.Errorf("searchIdeas() = %d results, want 0", len(results))
+	}
+}
+
+func TestSearchIdeas_andSemantics(t *testing.T) {
+	entries := []IdeaEntry{
+		{Title: "Cat and Dog", Prompt: "cat dog"},
+		{Title: "Only Cat", Prompt: "just a cat"},
+	}
+	idx := buildTestIndex(entries)
+	results := searchIdeas(entries, idx, "cat dog")
+	if len(results) != 1 {
+		t.Errorf("searchIdeas('cat dog') = %d results, want 1 (only first has both)", len(results))
+	}
+}
+
+func TestSearchIdeas_caseInsensitive(t *testing.T) {
+	entries := []IdeaEntry{{Title: "CINEMATIC PORTRAIT", Prompt: "test"}}
+	idx := buildTestIndex(entries)
+	results := searchIdeas(entries, idx, "cinematic")
+	if len(results) == 0 {
+		t.Error("searchIdeas('cinematic') = 0, want match (case insensitive)")
+	}
+}
+
+func TestSearchIdeas_zhMatch(t *testing.T) {
+	entries := []IdeaEntry{{TitleZh: "电影感肖像", PromptZh: "一张电影感肖像照片"}}
+	idx := buildTestIndex(entries)
+	results := searchIdeas(entries, idx, "电影")
+	if len(results) == 0 {
+		t.Error("searchIdeas('电影') = 0, want match for zh text")
 	}
 }
 
@@ -281,5 +384,4 @@ func TestDefaultConstants(t *testing.T) {
 	if ideasDefaultLimit != 8 {
 		t.Errorf("ideasDefaultLimit = %d, want 8", ideasDefaultLimit)
 	}
-	// ideasDefaultPageSize was removed; page-size functionality removed
 }

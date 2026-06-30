@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"net/http"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/spf13/cobra"
 
@@ -91,13 +93,16 @@ func runIdeas(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load ideas.json: %w\n  Generate it with: make ideas-data", err)
 	}
 
+	// Build BM25 index
+	idx := buildBM25Index(entries)
+
 	// Search
 	var results []searchResult
 	if ideasFindImage != "" {
 		results = searchByImage(entries, ideasFindImage)
 		keywords = "图片: " + ideasFindImage
 	} else if keywords != "" {
-		results = searchIdeas(entries, keywords)
+		results = searchIdeas(entries, idx, keywords)
 	} else if ideasRandom {
 		// --random without keywords: return all entries randomly
 		for i := range entries {
@@ -114,7 +119,7 @@ func runIdeas(cmd *cobra.Command, args []string) error {
 
 	total := len(results)
 
-	// Randomize if requested (before slicing)
+	// Randomize if --random flag is set (shuffles matched results)
 	if ideasRandom {
 		rand.Shuffle(len(results), func(i, j int) {
 			results[i], results[j] = results[j], results[i]
@@ -183,20 +188,272 @@ func loadIdeas() ([]IdeaEntry, error) {
 	return entries, nil
 }
 
-// --- search ---
+// --- BM25 + n-gram hybrid search ---
 
-func searchIdeas(entries []IdeaEntry, query string) []searchResult {
-	keywords := strings.Fields(strings.ToLower(query))
-	if len(keywords) == 0 {
-		return nil
+const (
+	bm25K1 = 1.2  // BM25 term frequency saturation
+	bm25B  = 0.75 // BM25 length normalization
+	rrfK   = 30.0 // RRF fusion constant
+)
+
+// bm25Index holds precomputed corpus statistics for BM25 scoring.
+type bm25Index struct {
+	avgDocLen float64
+	docCount  int
+	docLens   []int
+	idf       map[string]float64
+	entries   []IdeaEntry // reference to source entries, not a copy
+}
+
+// buildBM25Index walks all entries and computes corpus-level statistics.
+func buildBM25Index(entries []IdeaEntry) *bm25Index {
+	idx := &bm25Index{
+		docCount: len(entries),
+		docLens:  make([]int, len(entries)),
+		idf:      make(map[string]float64),
+		entries:  entries,
 	}
-	var results []searchResult
-	for _, e := range entries {
-		if score := scoreEntry(e, keywords); score > 0 {
-			results = append(results, searchResult{entry: e, score: score})
+
+	totalTokens := 0
+	docFreq := make(map[string]int)
+
+	for i, e := range entries {
+		terms := tokenize(searchableText(e))
+		idx.docLens[i] = len(terms)
+		totalTokens += len(terms)
+
+		seen := make(map[string]bool)
+		for _, t := range terms {
+			if !seen[t] {
+				docFreq[t]++
+				seen[t] = true
+			}
 		}
 	}
-	sort.Slice(results, func(i, j int) bool { return results[i].score > results[j].score })
+	idx.avgDocLen = float64(totalTokens) / float64(max(idx.docCount, 1))
+
+	// IDF = log(1 + (N - df + 0.5) / (df + 0.5))
+	for term, df := range docFreq {
+		n := float64(idx.docCount)
+		d := float64(df)
+		idx.idf[term] = math.Log(1 + (n-d+0.5)/(d+0.5))
+	}
+
+	return idx
+}
+
+// bm25Score returns the BM25 score for a single entry given query terms.
+func (idx *bm25Index) bm25Score(entryIdx int, queryTerms []string) float64 {
+	text := searchableText(idx.entries[entryIdx])
+	terms := tokenize(text)
+	tf := make(map[string]int)
+	for _, t := range terms {
+		tf[t]++
+	}
+
+	docLen := float64(idx.docLens[entryIdx])
+	var score float64
+
+	for _, qt := range queryTerms {
+		idf := idx.idf[qt]
+		if idf == 0 {
+			continue
+		}
+		freq := float64(tf[qt])
+		score += idf * freq * (bm25K1 + 1) / (freq + bm25K1*(1-bm25B+bm25B*docLen/idx.avgDocLen))
+	}
+
+	return score
+}
+
+// ngramSet returns the set of character n-grams for a string.
+func ngramSet(s string, n int) map[string]int {
+	s = strings.ToLower(s)
+	grams := make(map[string]int)
+	for i := 0; i <= len(s)-n; i++ {
+		grams[s[i:i+n]]++
+	}
+	return grams
+}
+
+// cosineSimilarity computes cosine similarity between two n-gram frequency maps.
+func cosineSimilarity(a, b map[string]int) float64 {
+	var dot, normA, normB float64
+	for k, v := range a {
+		normA += float64(v * v)
+		if bv, ok := b[k]; ok {
+			dot += float64(v * bv)
+		}
+	}
+	for _, v := range b {
+		normB += float64(v * v)
+	}
+	if normA == 0 || normB == 0 {
+		return 0
+	}
+	return dot / (math.Sqrt(normA) * math.Sqrt(normB))
+}
+
+// searchableText combines all searchable fields into one string.
+func searchableText(e IdeaEntry) string {
+	return e.Title + " " + e.TitleZh + " " + e.Prompt + " " + e.PromptZh
+}
+
+// tokenize splits text into lowercase tokens of Unicode letters/digits.
+func tokenize(text string) []string {
+	var tokens []string
+	var buf []rune
+	for _, r := range strings.ToLower(text) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			buf = append(buf, r)
+		} else if len(buf) > 0 {
+			if len(buf) >= 2 {
+				tokens = append(tokens, string(buf))
+			}
+			buf = buf[:0]
+		}
+	}
+	if len(buf) >= 2 {
+		tokens = append(tokens, string(buf))
+	}
+	return tokens
+}
+
+// containsWord checks if term appears as a whole word in text.
+// Uses byte-level word boundary detection that works for both
+// ASCII (space-separated) and CJK (no spaces between characters).
+func containsWord(text, term string) bool {
+	lower := strings.ToLower(text)
+	t := strings.ToLower(strings.TrimSpace(term))
+	if t == "" {
+		return false
+	}
+	// Scan for term at every position with word-boundary check
+	for i := 0; i <= len(lower)-len(t); i++ {
+		if lower[i:i+len(t)] != t {
+			continue
+		}
+		if i > 0 && isWordChar(lower[i-1]) {
+			continue
+		}
+		if i+len(t) < len(lower) && isWordChar(lower[i+len(t)]) {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+// isWordChar returns true for ASCII word characters (a-z, A-Z, 0-9).
+// Non-ASCII bytes (CJK, punctuation) are NOT word chars, which means
+// CJK characters are naturally treated as word boundaries.
+func isWordChar(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+}
+
+// withinText returns the combined searchable text for AND/word-boundary checks.
+func withinText(e IdeaEntry) string {
+	return e.Title + " " + e.TitleZh + " " + e.Prompt + " " + e.PromptZh
+}
+
+// andFilter returns true if all query terms appear as whole words in the entry.
+func andFilter(e IdeaEntry, terms []string) bool {
+	text := withinText(e)
+	for _, t := range terms {
+		if !containsWord(text, t) {
+			return false
+		}
+	}
+	return true
+}
+
+// --- search ---
+
+func searchIdeas(entries []IdeaEntry, idx *bm25Index, query string) []searchResult {
+	queryTerms := tokenize(query)
+	if len(queryTerms) == 0 {
+		return nil
+	}
+
+	// Phase 1: AND filter + BM25 scoring
+	type scored struct {
+		entryIdx int
+		bm25     float64
+	}
+	var candidates []scored
+
+	for i := range entries {
+		if !andFilter(entries[i], queryTerms) {
+			continue
+		}
+		s := idx.bm25Score(i, queryTerms)
+		// Title boost: multiply BM25 by 2 if any term matches in the title
+		title := strings.ToLower(entries[i].Title + " " + entries[i].TitleZh)
+		for _, t := range queryTerms {
+			if containsWord(title, t) {
+				s *= 2
+				break
+			}
+		}
+		candidates = append(candidates, scored{entryIdx: i, bm25: s})
+	}
+
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	// Phase 2: n-gram cosine similarity for the same candidates
+	queryNgrams := ngramSet(query, 3)
+	type ngramScored struct {
+		entryIdx int
+		cosine   float64
+	}
+	var ngramCandidates []ngramScored
+	for _, c := range candidates {
+		text := searchableText(entries[c.entryIdx])
+		docNgrams := ngramSet(text, 3)
+		cos := cosineSimilarity(queryNgrams, docNgrams)
+		ngramCandidates = append(ngramCandidates, ngramScored{entryIdx: c.entryIdx, cosine: cos})
+	}
+
+	// Phase 3: RRF fusion
+	// Sort candidates by BM25 descending for BM25 ranks
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].bm25 > candidates[j].bm25
+	})
+	bm25Ranks := make(map[int]int)
+	for i, c := range candidates {
+		bm25Ranks[c.entryIdx] = i + 1
+	}
+
+	// Sort by n-gram cosine descending for n-gram ranks
+	sort.Slice(ngramCandidates, func(i, j int) bool {
+		return ngramCandidates[i].cosine > ngramCandidates[j].cosine
+	})
+	ngramRanks := make(map[int]int)
+	for i, c := range ngramCandidates {
+		ngramRanks[c.entryIdx] = i + 1
+	}
+
+	// RRF: combine ranks
+	rrf := make(map[int]float64)
+	for _, c := range candidates {
+		r1 := float64(bm25Ranks[c.entryIdx])
+		r2 := float64(ngramRanks[c.entryIdx])
+		rrf[c.entryIdx] = 1.0/(rrfK+r1) + 1.0/(rrfK+r2)
+	}
+
+	results := make([]searchResult, 0, len(candidates))
+	for _, c := range candidates {
+		results = append(results, searchResult{
+			entry: entries[c.entryIdx],
+			score: int(rrf[c.entryIdx] * 1000),
+		})
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].score > results[j].score
+	})
 	return results
 }
 
@@ -208,7 +465,6 @@ func searchByImage(entries []IdeaEntry, filename string) []searchResult {
 	for _, e := range entries {
 		for _, url := range e.ImageURLs {
 			if strings.Contains(strings.ToLower(url), fn) {
-				// Dedup by image URL; fallback to source_url or title+prompt
 				key := url
 				if key == "" {
 					key = e.SourceURL
@@ -225,21 +481,6 @@ func searchByImage(entries []IdeaEntry, filename string) []searchResult {
 		}
 	}
 	return results
-}
-
-func scoreEntry(e IdeaEntry, keywords []string) int {
-	haystack := strings.ToLower(e.Title + " " + e.TitleZh + " " + e.Prompt + " " + e.PromptZh)
-	score := 0
-	for _, kw := range keywords {
-		if strings.Contains(haystack, kw) {
-			score++
-			if strings.Contains(strings.ToLower(e.Title), kw) ||
-				strings.Contains(strings.ToLower(e.TitleZh), kw) {
-				score += 2
-			}
-		}
-	}
-	return score
 }
 
 // --- markdown output ---
@@ -441,7 +682,7 @@ func downloadImage(url string) ([]byte, error) {
 func init() {
 	f := ideasCmd.Flags()
 	f.IntVarP(&ideasLimit, "limit", "l", ideasDefaultLimit, "Number of results to show (default 8)")
-	f.BoolVar(&ideasRandom, "random", true, "Shuffle results randomly (from full result set, default true)")
+	f.BoolVar(&ideasRandom, "random", false, "Shuffle matched results randomly (default: ranked by relevance)")
 	f.BoolVar(&ideasJSON, "json", false, "Output as JSON instead of markdown")
 	f.BoolVar(&ideasSaveImages, "save", false, "Download reference images to local directory")
 	f.BoolVar(&ideasPreview, "preview", false, "Open saved images with system default viewer (implies --save)")
