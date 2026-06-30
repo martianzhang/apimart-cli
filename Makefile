@@ -39,9 +39,10 @@ clean:
 	rm -f $(BINARY) $(BINARY).exe
 	rm -rf $(RELEASE_DIR)
 
-## Run static analysis
+## Run static analysis (go vet + golangci-lint if available)
 lint:
 	$(GO) vet ./...
+	$(if $(shell which golangci-lint 2>/dev/null),golangci-lint run ./...,@echo "  golangci-lint not installed, skipping")
 
 vet: lint
 

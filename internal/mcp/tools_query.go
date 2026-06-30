@@ -30,11 +30,6 @@ func listModelsHandler() server.ToolHandlerFunc {
 			return mcp.NewToolResultText("没有找到模型。"), nil
 		}
 
-		// Group by vendor
-		type group struct {
-			vendor string
-			models []types.MarketplaceModel
-		}
 		vendorMap := make(map[string][]types.MarketplaceModel)
 		for _, m := range models {
 			vName := "Other"
@@ -240,7 +235,8 @@ func handleMCPGetAPIMartTask(c client.APIClient, taskID, outputDir string) (*mcp
 	fmt.Fprintf(&b, "Task ID: %s\n", task.ID)
 	fmt.Fprintf(&b, "Status: %s | Progress: %d%%\n", task.Status, task.Progress)
 
-	if task.Status == "completed" {
+	switch task.Status {
+	case "completed":
 		fmt.Fprintf(&b, "Time: %ds | Cost: $%.5f (%.4f credits)\n", task.ActualTime, task.Cost, task.CreditsCost)
 
 		if task.Result != nil && len(task.Result.Images) > 0 {
@@ -285,11 +281,11 @@ func handleMCPGetAPIMartTask(c client.APIClient, taskID, outputDir string) (*mcp
 				}
 			}
 		}
-	} else if task.Status == "failed" {
+	case "failed":
 		if task.Error != nil {
 			fmt.Fprintf(&b, "Error: %s (code %d)\n", task.Error.Message, task.Error.Code)
 		}
-	} else {
+	default:
 		b.WriteString("\n任务仍在处理中，请稍后再查。\n")
 	}
 

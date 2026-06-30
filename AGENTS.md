@@ -12,7 +12,7 @@
 |---|---|---|
 | `make fmt` | `go fmt ./...` 格式化代码 | 每次编辑后 |
 | `make build` | 编译二进制 | 每次编辑后 |
-| `make lint` | `go vet ./...` 静态检查 | 每次提交前 |
+| `make lint` | `go vet ./...` + `golangci-lint` 静态检查 | 每次提交前 |
 | `make test` | 运行全部测试 | 每次编辑后 |
 | `make cover` | 测试覆盖率报告 | 每次提交前 |
 | `make clean` | 清理构建产物 | 按需 |

@@ -180,7 +180,7 @@ func handleMCPAPIMartImage(c client.APIClient, req *types.GenerateRequest, outpu
 
 	lines := []string{
 		fmt.Sprintf("Task ID: %s", taskData.ID),
-		fmt.Sprintf("Status: completed"),
+		"Status: completed",
 		fmt.Sprintf("Time: %ds | Cost: $%.5f (%.4f credits)", taskData.ActualTime, taskData.Cost, taskData.CreditsCost),
 	}
 	if len(savedFiles) > 0 {

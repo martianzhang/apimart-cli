@@ -339,7 +339,7 @@ func overrideStruct(fs, inherited *pflag.FlagSet, structPtr interface{}, section
 			if val, err := source.GetString(flagName); err == nil && val != "" && val != origStr {
 				field.SetString(val)
 			}
-		case reflect.Ptr:
+		case reflect.Pointer:
 			switch field.Type().Elem().Kind() {
 			case reflect.Int:
 				if val, err := source.GetInt(flagName); err == nil {

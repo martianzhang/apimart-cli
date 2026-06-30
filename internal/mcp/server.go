@@ -27,7 +27,7 @@ type Config struct {
 func buildImageDesc(d *types.ImageDefaults, baseURL string) string {
 	b := new(strings.Builder)
 	p := provider.Detect(baseURL)
-	b.WriteString(fmt.Sprintf("Generate images via %s.\n\n当前配置（在 ~/.config/apimart/config.yaml 中修改）:\n", p))
+	fmt.Fprintf(b, "Generate images via %s.\n\n当前配置（在 ~/.config/apimart/config.yaml 中修改）:\n", p)
 	if d != nil {
 		fmt.Fprintf(b, "  model = %s | size = %s | resolution = %s\n", d.Model, d.Size, d.Resolution)
 		fmt.Fprintf(b, "  quality = %s | output_format = %s", d.Quality, d.OutputFormat)
@@ -44,7 +44,7 @@ func buildImageDesc(d *types.ImageDefaults, baseURL string) string {
 func buildVideoDesc(d *types.VideoDefaults, baseURL string) string {
 	b := new(strings.Builder)
 	p := provider.Detect(baseURL)
-	b.WriteString(fmt.Sprintf("Generate videos via %s (async submit → poll).\n\n当前配置（在 ~/.config/apimart/config.yaml 中修改）:\n", p))
+	fmt.Fprintf(b, "Generate videos via %s (async submit → poll).\n\n当前配置（在 ~/.config/apimart/config.yaml 中修改）:\n", p)
 	if d != nil {
 		fmt.Fprintf(b, "  model = %s", d.Model)
 		if d.Size != "" {

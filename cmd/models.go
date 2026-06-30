@@ -294,10 +294,10 @@ func runModelsOpenRouterDiscovery(mediaType string) error {
 // isHTML checks whether the first non-whitespace bytes look like HTML.
 func isHTML(body []byte) bool {
 	for _, b := range body {
-		switch {
-		case b == ' ' || b == '\t' || b == '\n' || b == '\r':
+		switch b {
+		case ' ', '\t', '\n', '\r':
 			continue
-		case b == '<':
+		case '<':
 			return true
 		default:
 			return false
