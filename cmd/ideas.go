@@ -18,13 +18,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	_ "embed"
-
 	"github.com/martianzhang/apimart-cli/internal/service"
 )
-
-//go:embed ideas.json
-var ideasData []byte
 
 // --- data structures ---
 
@@ -89,16 +84,21 @@ func runIdeas(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Load ideas.json
-	entries, err := loadIdeas()
+	// Load ideas.json (from external file)
+	entries, rawData, err := loadIdeas()
 	if err != nil {
-		return fmt.Errorf("failed to load ideas.json: %w\n  Generate it with: make ideas-data", err)
+		return err
 	}
 
-	// Build BM25 index only when we need to search (not for pure --random)
+	// Load or build BM25 index (cache-supported)
 	var idx *bm25Index
 	if keywords != "" {
-		idx = buildBM25Index(entries)
+		hash := computeHash(rawData)
+		idx = loadCachedIndex(shared.Cfg, hash)
+		if idx == nil {
+			idx = buildBM25Index(entries)
+			saveCachedIndex(shared.Cfg, idx, hash)
+		}
 	}
 
 	// Search
@@ -185,12 +185,19 @@ func resolveIdeasKeywords(args []string) (string, error) {
 
 // --- data loading ---
 
-func loadIdeas() ([]IdeaEntry, error) {
-	var entries []IdeaEntry
-	if err := json.Unmarshal(ideasData, &entries); err != nil {
-		return nil, err
+func loadIdeas() (entries []IdeaEntry, rawData []byte, err error) {
+	path := resolveIdeasDataPath(shared.Cfg)
+	if path == "" {
+		return nil, nil, fmt.Errorf("ideas.json not found.\n  Run 'apimart-cli ideas init' to download the prompt dataset,\n  or place ideas.json at ~/.config/apimart/ideas.json")
 	}
-	return entries, nil
+	data, err := os.ReadFile(filepath.Clean(path))
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot read %s: %w", path, err)
+	}
+	if err := json.Unmarshal(data, &entries); err != nil {
+		return nil, nil, fmt.Errorf("invalid ideas.json: %w", err)
+	}
+	return entries, data, nil
 }
 
 // --- BM25 + n-gram hybrid search ---

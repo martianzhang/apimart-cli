@@ -20,7 +20,7 @@ fmt:
 	$(GO) fmt ./...
 
 ## Build the binary
-build: fmt ideas
+build: fmt
 	$(GO) build $(GOFLAGS) -o $(OUTPUT) .
 
 ## Ensure ideas.json exists (script skips if already up-to-date)
